@@ -188,7 +188,7 @@ Rhapson method in the context of the pdf
 $f_\theta(x) = \frac{1-\cos(x-\theta)}{2\pi}$ where
 $0\le x \le 2\pi$ and $-\pi\le\theta\le\pi$.
 
-# 2.a
+## 2.a
 ```{r}
 raw = c(0.52, 1.96, 2.22, 2.28, 2.28, 2.46, 2.50, 2.53, 2.54, 2.99, 3.47, 3.53,
         3.70, 3.88, 3.91, 4.04, 4.06, 4.82, 4.85, 5.46)
@@ -235,3 +235,12 @@ g = qplot(df$theta, df$loglik) +
     ylab(TeX("l($\\theta)")) + xlab(TeX("$\\theta"))
 g
 ```
+
+## 2.b
+To find the Method of Moments (MoM) estimator of $\theta$, we calculate the
+expectation first: $E(X) = \int_{0}^{2\pi} x p_\theta(x) dx =
+\frac{1}{2\pi} \int_{0}^{2\pi} x - x\cos(x-\theta) dx = \pi - sin(\theta)$ using
+integration by parts.
+Using MoM, we estimate the first moment emperically
+$\bar{X} = \pi - sin(\hat{\theta}_{MoM})$ and hence
+$\hat{\theta}_{MoM} = \sin^{-1}(\bar{X}-\pi)$.
