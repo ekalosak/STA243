@@ -38,8 +38,8 @@ $l_n^{''}(\theta) =
 The Fischer Information is calculated as follows:
 $I_n(\theta) = n*I(\theta)$.
 $I(\theta) = -E_\theta(l^{''}(\theta)) =
-    \int_{-\inf}^{\inf} p(x,\theta)*l^{''}(\theta) dx$. This simplifies to
-$\frac{2}{\pi} \int_{-\inf}^{\inf}
+    \int_{-\infty}^{\infty} p(x,\theta)*l^{''}(\theta) dx$. This simplifies to
+$\frac{2}{\pi} \int_{-\infty}^{\infty}
     \frac{1-(\theta-x)^2}{(1+(\theta-x)^2)^3} dx = \frac{2}{\pi} \frac{\pi}{4}$.
 Leveraging the first equality, we see that $I_n(\theta) = \frac{n}{2}$.
 
@@ -60,10 +60,10 @@ l_n = function(xs, t){
     return(r)
 }
 
-N = 100
+N = 200
 raw = c(-13.87, -2.53, -2.44, -2.40, -1.75, -1.34, -1.05, -0.23, -0.07, 0.27,
         1.77, 2.76, 3.29, 3.47, 3.71, 3.80, 4.24, 4.53, 43.21, 56.75)
-ts = seq(from=min(raw), to=max(raw), length=N)
+ts = seq(from=min(raw)-10, to=max(raw)+10, length=N)
 
 df = data.frame(ts, l_n(xs=raw, t=ts))
 names(df) = c("theta", "loglik")
@@ -75,6 +75,94 @@ g = qplot(df$theta, df$loglik) +
 g
 ```
 
+## 1.d
+```{r}
+xis = c(-11, -1, 0, 1.4, 4.1, 4.8, 7, 8, 38) # initial values for NR
+eps = 0.001 # convergence criterion
+delt = 0.0001 # increment parameter for derivatives
+
+f_pdf = function(t){
+    # Log likelihood given raw data as xs
+    return(l_n(xs=raw, t=t))
+}
+fp = function(f, t, d){
+    # first derivative aprox
+    f0 = f(t-d/2)
+    f1 = f(t+d/2)
+    return((f1-f0)/d)
+}
+fpp = function(f, t, d){
+    # second derivative aprox
+    return(fp(fp(f, t, d), t, d))
+}
+
+nr_inc = function(f, x, d){
+    # Increment x using the newton rhapson method
+    return(x-f(x)/fp(f, x, d))
+}
+
+nr = function(f, x0, e, d){
+    # use NR to find a zero for the function
+    r = F
+    if(x0 == -11 || x0 == 4.8){
+        r = T
+    }
+    x1 = nr_inc(f, x0, d)
+    while(abs(x1-x0)>e){
+        # While we haven't converged, iterate the NR algorithm (nr_inc)
+        x0 = x1
+        x1 = nr_inc(f, x0, d)
+        if(r){
+            print(x1)
+        }
+
+        if(abs(x1)==Inf){
+            # If the algorithm diverges, return Inf
+            return(Inf)
+        }
+    }
+
+    # If we've converged (abs(x1-x0)<e) then return the convergent value
+    return(x1)
+}
+
+f_find_0 = function(t){
+    # This is the function we're finding the 0's of
+    # In this case, it's the first derivative of the log likelihood (f_pdf)
+    return(fp(f_pdf, t, delt))
+}
+
+xmax = c() # holds results of NR algorithm, Inf when divergent
+for(xi in xis){
+    xmax = c(xmax, nr(f_find_0, xi, eps, delt))
+}
+```
+
+The Newton-Rhapson method has found the following maxima for the initial values
+$`r xis[xmax!=Inf]`$: $`r xmax[xmax!=Inf]`$.
+The initial values $`r xis[xmax==Inf]`$ begat divergent results with the tuning
+parameters used in this algorithm. These results show that the maximum found by
+N-R is local and depends heavily on the initial conditions when the pdf is
+multimodal as is the case in this example.
+
+It is illustrative to examine the first derivative of the log likelihood
+function for insight on divergence conditions:
+```{r}
+N = 200
+xss = seq(-10,50,length.out=N)
+yss = f_find_0(xss)
+df = data.frame(xss, yss)
+g = qplot(df$xss, df$yss) +
+    geom_line() +
+    ggtitle(paste("First derivative of log likelihood collocated at", N, "points"))
+g
+```
+
+Note that N-R finds the obvious roots of the first derivative of the log
+likelihood function, but it diverges on the tails.
+
+## 1.e
+FOOBAR TODO
 
 # 2
 ```{r}
