@@ -7,6 +7,7 @@ output:
 
 ```{r, message=F, warning=F}
 library("ggplot2")          # fancy plotting
+library("latex2exp")        # latex for plots
 ```
 
 # 1
@@ -20,41 +21,62 @@ Further, $l_n^{'}(\theta) = \frac{\partial}{\partial \theta} l_n(\theta) =
     -\sum_{i=1}^{n} \frac{\partial}{\partial \theta} \log{1+(x_i-\theta)^2} =
     -2\sum_{i=1}^{n} \frac{\theta-x_i}{1+(x_i-\theta)^2}$.
   
-Finally, $foo-bar$
+Finally $l_n^{''}(\theta) = \frac{\partial^2}{\partial \theta^2} l_n(\theta) =
+    \frac{\partial}{\partial \theta} l_n^{'}(\theta) =
+    -2\sum_{i=1}^{n} \frac{1}{1+(x_i-\theta)^2} -
+    (\theta-x_i)(1+(\theta-x_i)^2)^{-2}(2(\theta-x_i))$.
+Rewriting some terms, we find
+$l_n^{''}(\theta) =
+    -2\sum_{i=1}^{n} \frac{1+(x_i-\theta)^2}{(1+(x_i-\theta)^2)^2} -
+    \frac{-2(\theta-x_i)^2}{(1+(x_i-\theta)^2)^2}$
+which simplifies to
+$l_n^{''}(\theta) =
+    -2\sum_{i=1}^{n} \frac{1-(\theta-x_i)^2}{(1+(\theta-x_i)^2)^2}$ as desired.
+
 
 ## 1.b
-TODO
+The Fischer Information is calculated as follows:
+$I_n(\theta) = n*I(\theta)$.
+$I(\theta) = -E_\theta(l^{''}(\theta)) =
+    \int_{-\inf}^{\inf} p(x,\theta)*l^{''}(\theta) dx$. This simplifies to
+$\frac{2}{\pi} \int_{-\inf}^{\inf}
+    \frac{1-(\theta-x)^2}{(1+(\theta-x)^2)^3} dx = \frac{2}{\pi} \frac{\pi}{4}$.
+Leveraging the first equality, we see that $I_n(\theta) = \frac{n}{2}$.
 
 ## 1.c
 ```{r}
-# raw = c(−13.87, −2.53, −2.44, −2.40, −1.75, −1.34, −1.05, −0.23, −0.07, 0.27,
-        # 1.77, 2.76, 3.29, 3.47, 3.71, 3.80, 4.24, 4.53, 43.21, 56.75)
-raw = 1:4
-
 p_1 = function(x, t){
     d = pi*(1+(x-t)^2)
     return(1/d)
 }
-p_n = function(xs, t){
-    r = 1
+l_1 = function(x, t){
+    return(log(p_1(x,t)))
+}
+l_n = function(xs, t){
+    r = 0
     for(x in xs){
-        r = r*p_1(x,t)
+        r = r + l_1(x, t)
     }
     return(r)
 }
-l_n = function(xs, t){
-    return(log(p_n(xs,t)))
-}
 
-ts = seq(from=min(raw), to=max(raw), length=100)
-# plot(ts, p_n(xs=raw, t=ts), main="Log likelihood")
-df = data.frame(ts, p_n(xs=raw, t=ts))
+N = 100
+raw = c(-13.87, -2.53, -2.44, -2.40, -1.75, -1.34, -1.05, -0.23, -0.07, 0.27,
+        1.77, 2.76, 3.29, 3.47, 3.71, 3.80, 4.24, 4.53, 43.21, 56.75)
+ts = seq(from=min(raw), to=max(raw), length=N)
+
+df = data.frame(ts, l_n(xs=raw, t=ts))
 names(df) = c("theta", "loglik")
-ggplot(df, aes(x="theta")) + geom_density()
+
+g = qplot(df$theta, df$loglik) +
+    geom_line() +
+    ggtitle(paste("Log likelihood collocated at", N, "points")) +
+    ylab(TeX("l($\\theta)")) + xlab(TeX("$\\theta"))
+g
 ```
 
 
 # 2
 ```{r}
-foo = 2
+foo = 10
 ```
