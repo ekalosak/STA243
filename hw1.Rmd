@@ -101,13 +101,14 @@ nr_inc = function(f, x, d){
     return(x-f(x)/fp(f, x, d))
 }
 
-nr = function(f, x0, e, d){
+find_0s = function(f, x0, e, d, inc_fxn){
     # use NR to find a zero for the function
-    x1 = nr_inc(f, x0, d)
+    x1 = inc_fxn(f, x0, d)
     while(abs(x1-x0)>e){
-        # While we haven't converged, iterate the NR algorithm (nr_inc)
+        # While we haven't converged, iterate the incrementing function (which
+        # must have the signature [pdf, x, delta]) e.g. nr_inc
         x0 = x1
-        x1 = nr_inc(f, x0, d)
+        x1 = inc_fxn(f, x0, d)
 
         if(abs(x1)==Inf){
             # If the algorithm diverges, return Inf
@@ -127,7 +128,7 @@ f_find_0 = function(t){
 
 xmax = c() # holds results of NR algorithm, Inf when divergent
 for(xi in xis){
-    xmax = c(xmax, nr(f_find_0, xi, eps, delt))
+    xmax = c(xmax, find_0s(f_find_0, xi, eps, delt, nr_inc))
 }
 ```
 
@@ -147,15 +148,39 @@ yss = f_find_0(xss)
 df = data.frame(xss, yss)
 g = qplot(df$xss, df$yss) +
     geom_line() +
-    ggtitle(paste("First derivative of log likelihood collocated at", N, "points"))
+    ggtitle(
+        paste("First derivative of log likelihood collocated at",
+              N,
+              "points")) +
+    ylab(TeX("$\\partial l($\\theta)")) +
+    xlab(TeX("$\\theta"))
 g
 ```
 
 Note that N-R finds the obvious roots of the first derivative of the log
-likelihood function, but it diverges on the tails.
+likelihood function, but it diverges on the tails as it chases the 0's at
+$\pm\infty$.
 
 ## 1.e
-FOOBAR TODO
+```{r}
+fI = length(raw)/2  # I(\theta) = n/2 for the Cauchy dist.
+fiscor_inc = function(f, x, d){
+    # Increment x using the Fischer Scoring method
+    return(x+f(x)/fI)
+}
+xmax = c() # holds results of FS algorithm, Inf when divergent
+for(xi in xis){
+    xmax = c(xmax, find_0s(f_find_0, xi, eps, delt, fiscor_inc))
+}
+```
+
+The Fischer Scoring method has found the following maxima for the initial values
+$`r xis[xmax!=Inf]`$: $`r xmax[xmax!=Inf]`$.
+There were no divergent results using the Fischer Scoring algorithm in this
+case, but it missed three apparent MLE candidate values. The MLE candidates
+found with the Fischer Scoring method are in agreement with a subset of the
+candidates proposed by the Newton-Rhapson method in 1.d above.
+
 
 # 2
 ```{r}

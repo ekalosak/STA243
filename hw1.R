@@ -1,4 +1,5 @@
 library("ggplot2")
+library("latex2exp")        # latex for plots
 
 p_1 = function(x, t){
     d = pi*(1+(x-t)^2)
@@ -27,22 +28,28 @@ g = ggplot(df, aes(x="theta", y="loglik")) +
     ylab(TeX("l($\\theta)")) + xlab(TeX("$\\theta"))
 
 
-xis = c(-11, -1, 0, 1.4, 4.1, 4.8, 7, 8, 38)
-eps = 0.01
+xis = c(-11, -1, 0, 1.4, 4.1, 4.8, 7, 8, 38) # initial values for NR
+eps = 0.001 # convergence criterion
+delt = 0.0001 # increment parameter for derivatives
 
 f_pdf = function(t){
     # Log likelihood given raw data as xs
     return(l_n(xs=raw, t=t))
 }
-fp = function(f, t, e){
+fp = function(f, t, d){
     # first derivative aprox
-    f0 = f(t-e/2)
-    f1 = f(t+e/2)
-    return((f1-f0)/e)
+    f0 = f(t-d/2)
+    f1 = f(t+d/2)
+    return((f1-f0)/d)
 }
-fpp = function(f, t, e){
+fpp = function(f, t, d){
     # second derivative aprox
-    return(fp(fp(f, t, e), t, e))
+    return(fp(fp(f, t, d), t, d))
+}
+
+nr_inc = function(f, x, d){
+    # Increment x using the newton rhapson method
+    return(x-f(x)/fp(f, x, d))
 }
 
 nr_inc = function(f, x, e){
@@ -50,33 +57,45 @@ nr_inc = function(f, x, e){
     return(x-f(x)/fp(f, x, e))
 }
 
-nr = function(f, x0, e){
+find_0s = function(f, x0, e, d, inc_fxn){
     # use NR to find a zero for the function
-    x1 = nr_inc(f, x0, e)
-    i = 0
+    x1 = inc_fxn(f, x0, d)
     while(abs(x1-x0)>e){
-        print(i)
-        print(x0)
-        print(x1)
+        # While we haven't converged, iterate the incrementing function (which
+        # must have the signature [pdf, x, delta]) e.g. nr_inc
         x0 = x1
-        x1 = nr_inc(f, x0, e)
-        i = i + 1
+        x1 = inc_fxn(f, x0, d)
 
         if(abs(x1)==Inf){
-            # If the algorithm diverges, return False
+            # If the algorithm diverges, return Inf
             return(Inf)
         }
     }
-    print(paste("returning after", i, "iterations"))
+
+    # If we've converged (abs(x1-x0)<e) then return the convergent value
     return(x1)
 }
-
-xmax = c()
 
 f_find_0 = function(t){
     return(fp(f_pdf, t, eps))
 }
+xmax = c() # holds results of NR algorithm, Inf when divergent
+for(xi in xis){
+    xmax = c(xmax, find_0s(f_find_0, xi, eps, delt, nr_inc))
+}
+
+print("Finished NR, starting on fI")
+
+eps = 0.001 # convergence criterion
+delt = 0.001 # increment parameter for derivatives
+
+fI = length(raw)/2  # I(\theta) = n/2 for the Cauchy dist.
+fiscor_inc = function(f, x, d){
+    # Increment x using the Fischer Scoring method
+    return(x+f(x)/fI)
+}
+xmax = c() # holds results of NR algorithm, Inf when divergent
 for(xi in xis){
     print(paste("working on", xi))
-    xmax = c(xmax, nr(f_find_0, xi, eps))
+    xmax = c(xmax, find_0s(f_find_0, xi, eps, delt, fiscor_inc))
 }
