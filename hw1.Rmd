@@ -103,18 +103,11 @@ nr_inc = function(f, x, d){
 
 nr = function(f, x0, e, d){
     # use NR to find a zero for the function
-    r = F
-    if(x0 == -11 || x0 == 4.8){
-        r = T
-    }
     x1 = nr_inc(f, x0, d)
     while(abs(x1-x0)>e){
         # While we haven't converged, iterate the NR algorithm (nr_inc)
         x0 = x1
         x1 = nr_inc(f, x0, d)
-        if(r){
-            print(x1)
-        }
 
         if(abs(x1)==Inf){
             # If the algorithm diverges, return Inf
