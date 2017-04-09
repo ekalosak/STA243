@@ -38,7 +38,7 @@ $l_n^{''}(\theta) =
 The Fischer Information is calculated as follows:
 $I_n(\theta) = n*I(\theta)$.
 $I(\theta) = -E_\theta(l^{''}(\theta)) =
-    \int_{-\infty}^{\infty} p(x,\theta)*l^{''}(\theta) dx$. This simplifies to
+    -\int_{-\infty}^{\infty} p(x,\theta)*l^{''}(\theta) dx$. This simplifies to
 $\frac{2}{\pi} \int_{-\infty}^{\infty}
     \frac{1-(\theta-x)^2}{(1+(\theta-x)^2)^3} dx = \frac{2}{\pi} \frac{\pi}{4}$.
 Leveraging the first equality, we see that $I_n(\theta) = \frac{n}{2}$.
@@ -183,6 +183,55 @@ candidates proposed by the Newton-Rhapson method in 1.d above.
 
 
 # 2
+In this problem we examine the behavior of MLE convergence using the Newton
+Rhapson method in the context of the pdf
+$f_\theta(x) = \frac{1-\cos(x-\theta)}{2\pi}$ where
+$0\le x \le 2\pi$ and $-\pi\le\theta\le\pi$.
+
+# 2.a
 ```{r}
-foo = 10
+raw = c(0.52, 1.96, 2.22, 2.28, 2.28, 2.46, 2.50, 2.53, 2.54, 2.99, 3.47, 3.53,
+        3.70, 3.88, 3.91, 4.04, 4.06, 4.82, 4.85, 5.46)
+
+p_1 = function(x, t){
+    # Single dimensional pdf of x with parameter t
+
+    # Domain checking
+    if(x<0 || x>2*pi){
+        return(0)
+    }
+    if(t< -pi || t>pi){
+        return(0)
+    }
+
+    return((1-cos(x-t))/(2*pi))
+}
+
+l_n = function(xs, t){
+    # multidimensional log likelihood for the above pdf
+    r = 0
+    for(x in xs){
+        r = r + log(p_1(x, t))
+    }
+    return(r)
+}
+
+llik = function(t){
+    # log likelihood above conditioned on observing the raw data above
+    return(l_n(raw, t))
+}
+
+# Plot the loglikelihood
+N = 250
+ts = seq(from=-pi, to=pi, length=N)
+
+df = data.frame(ts, llik(ts))
+names(df) = c("theta", "loglik")
+
+rm(g)
+g = qplot(df$theta, df$loglik) +
+    geom_line() +
+    ggtitle(paste("Log likelihood collocated at", N, "points")) +
+    ylab(TeX("l($\\theta)")) + xlab(TeX("$\\theta"))
+g
 ```

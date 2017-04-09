@@ -99,3 +99,50 @@ for(xi in xis){
     print(paste("working on", xi))
     xmax = c(xmax, find_0s(f_find_0, xi, eps, delt, fiscor_inc))
 }
+
+
+### PR 2
+raw = c(0.52, 1.96, 2.22, 2.28, 2.28, 2.46, 2.50, 2.53, 2.54, 2.99, 3.47, 3.53,
+        3.70, 3.88, 3.91, 4.04, 4.06, 4.82, 4.85, 5.46)
+
+p_1 = function(x, t){
+    # Single dimensional pdf of x with parameter t
+
+    # Domain checking
+    if(x<0 || x>2*pi){
+        return(0)
+    }
+    if(t< -pi || t>pi){
+        return(0)
+    }
+
+    return((1-cos(x-t))/(2*pi))
+}
+
+l_n = function(xs, t){
+    # multidimensional log likelihood for the above pdf
+    r = 0
+    for(x in xs){
+        r = r + log(p_1(x, t))
+    }
+    return(r)
+}
+
+llik = function(t){
+    # log likelihood above conditioned on observing the raw data above
+    return(l_n(raw, t))
+}
+
+# Plot llik
+N = 200
+ts = seq(from=-pi, to=pi, length=N)
+
+df = data.frame(ts, llik(ts))
+names(df) = c("theta", "loglik")
+
+rm(g)
+g = qplot(df$theta, df$loglik) +
+    geom_line() +
+    ggtitle(paste("Log likelihood collocated at", N, "points")) +
+    ylab(TeX("l($\\theta)")) + xlab(TeX("$\\theta"))
+g
