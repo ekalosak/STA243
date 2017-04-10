@@ -49,27 +49,30 @@ fpp = function(f, t, d){
 
 nr_inc = function(f, x, d){
     # Increment x using the newton rhapson method
+    print(paste("Incrementing", x))
     return(x-f(x)/fp(f, x, d))
-}
-
-nr_inc = function(f, x, e){
-    # Increment x using the newton rhapson method
-    return(x-f(x)/fp(f, x, e))
 }
 
 find_0s = function(f, x0, e, d, inc_fxn){
     # use NR to find a zero for the function
     x1 = inc_fxn(f, x0, d)
+    i = 0
     while(abs(x1-x0)>e){
         # While we haven't converged, iterate the incrementing function (which
         # must have the signature [pdf, x, delta]) e.g. nr_inc
         x0 = x1
         x1 = inc_fxn(f, x0, d)
+        print(paste("i:",i,"x0:",x0,"x1:",x1))
 
+        # Check for algorithm failures and divergences
+        if(is.na(x1)){
+            return(Inf)
+        }
         if(abs(x1)==Inf){
             # If the algorithm diverges, return Inf
             return(Inf)
         }
+        i = i+1
     }
 
     # If we've converged (abs(x1-x0)<e) then return the convergent value
@@ -96,7 +99,7 @@ fiscor_inc = function(f, x, d){
 }
 xmax = c() # holds results of NR algorithm, Inf when divergent
 for(xi in xis){
-    print(paste("working on", xi))
+    # print(paste("working on", xi))
     xmax = c(xmax, find_0s(f_find_0, xi, eps, delt, fiscor_inc))
 }
 
@@ -146,3 +149,27 @@ g = qplot(df$theta, df$loglik) +
     ggtitle(paste("Log likelihood collocated at", N, "points")) +
     ylab(TeX("l($\\theta)")) + xlab(TeX("$\\theta"))
 g
+
+## Solve for mle with MoM t0
+print("Working on pr2")
+eps = 0.001
+delt = 0.001
+t0 = asin(mean(raw) - pi)
+llikp = function(t){        # d/dt l(t)
+    return(fp(llik, t, delt))
+}
+mle = find_0s(llikp, t0, eps, delt, nr_inc)
+
+ts = seq(from=-pi, to=pi, length.out=N)
+df = data.frame(ts, llikp(ts))
+names(df) = c("theta", "dldt")
+
+
+N = 200
+t0s = seq(from=-pi+delt, to=pi-delt, length.out=N)
+mles = c()
+for(t0 in t0s){
+    mle = find_0s(llikp, t0, eps, delt, nr_inc)
+    print(paste("t0",t0,"mle",mle))
+    mles = c(mles, mle)
+}

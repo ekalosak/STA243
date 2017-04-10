@@ -8,6 +8,7 @@ output:
 ```{r, message=F, warning=F}
 library("ggplot2")          # fancy plotting
 library("latex2exp")        # latex for plots
+library("RColorBrewer")     # pretty colors
 ```
 
 # 1
@@ -110,6 +111,10 @@ find_0s = function(f, x0, e, d, inc_fxn){
         x0 = x1
         x1 = inc_fxn(f, x0, d)
 
+        # Check for algorithm failures and divergences
+        if(is.na(x1)){
+            return(Inf)
+        }
         if(abs(x1)==Inf){
             # If the algorithm diverges, return Inf
             return(Inf)
@@ -244,3 +249,117 @@ integration by parts.
 Using MoM, we estimate the first moment emperically
 $\bar{X} = \pi - sin(\hat{\theta}_{MoM})$ and hence
 $\hat{\theta}_{MoM} = \sin^{-1}(\bar{X}-\pi)$.
+
+## 2.c
+```{r}
+# Find N-R solution for MLE with t0=MoM
+eps = 0.001
+delt = 0.001
+t0 = asin(mean(raw) - pi)   # MoM estimate for t0
+llikp = function(t){        # d/dt l(t)
+    return(fp(llik, t, delt))
+}
+mle = find_0s(llikp, t0, eps, delt, nr_inc)     # Execute the N-R algorithm
+
+# Plot d/dt l(t)
+ts = seq(from=-pi, to=pi, length.out=N)
+llikps = c()
+for(t in ts){llikps = c(llikps, llikp(t))}
+df = data.frame(ts, llikps)
+names(df) = c("theta", "dldt")
+df1 = data.frame(mle, 0)    # subsetting for highlighted plotting below
+names(df1) = c("theta", "dldt")
+
+rm(g)
+g = qplot(df$theta, df$dldt) +
+    geom_line() +
+    geom_point(data=df1, aes(x=theta, y=dldt), colour="green") +
+    ggtitle(paste("First derivative of log likelihood collocated at",
+                  N, "points")) +
+    ylab(TeX("$\\partial l($\\theta)")) + xlab(TeX("$\\theta"))
+g
+```
+
+Using the initial value $\theta_0=\hat{\theta}_{MoM}=`r t0`$ for the
+Newton-Rhapson method, we find an MLE $\hat{\theta}_{MLE}=`r mle`$.
+
+## 2.d
+```{r}
+t0s = c(-2.7, 2.7)
+mles = c()
+for(t0 in t0s){
+    mle = find_0s(llikp, t0, eps, delt, nr_inc)
+    mles = c(mles, mle)
+}
+```
+
+Using the initial values $\theta_0\in\{`r t0s`\}$ we find the MLEs
+$\hat{\theta}_{MLE}\in\{`r mles`\}$.
+
+## 2.e
+```{r}
+N = 200
+t0s = seq(from=-pi+delt, to=pi-delt, length.out=N)
+mles = c()
+# Calculate MLEs
+for(t0 in t0s){
+    mle = find_0s(llikp, t0, eps, delt, nr_inc)
+    mles = c(mles, mle)
+}
+
+# Calculate "fuzzy" unique MLEs
+mles_clean = mles[!mles==Inf]
+umles = c()
+eps = 0.01
+
+for(m in mles_clean){
+    if(length(umles)==0){umles=c(m)} # if there are no unique mles, add one
+    uniq = TRUE
+    for(u in umles){
+        if(u+eps>m & u-eps<m){
+            # if the proposed MLE is close to an already unique MLE, pass
+            uniq = FALSE
+        }
+    }
+    if(uniq){
+        # If the proposed MLE (m) is not close to any of the established umles,
+        # add it to the list of umles
+        umles[length(umles)+1] = m
+    }
+}
+
+# Determine which attractor each t0 is pulled to
+df = data.frame(t0s, llik(t0s), mles, rep(0, length(mles)))
+names(df) = c("t0", "llik", "mle", "group")
+nu = 1
+for(u in umles){
+    for(i in 1:nrow(df)){
+        m = df[i,]$mle
+        if(m+eps>u & u-eps<u){
+            df[i,]$group = nu
+        }
+        if(m==Inf){
+            df[i,]$group = 0
+        }
+    }
+    nu = nu + 1
+}
+df$group = as.factor(df$group)
+```
+
+We find `r length(umles)` unique MLEs: `r umles`.
+
+```{r}
+df1 = data.frame(umles, rep(0,length(umles)))
+names(df1) = c("mle", "llik")
+df1$llik = llik(df1$mle)
+
+g = qplot(df$t0, df$llik, color=df$group) +
+    ggtitle("Basins of attraction for Newton-Rhapson MLE calculation") +
+    ylab(TeX("l($\\theta)")) + xlab(TeX("$\\theta")) +
+    geom_point(data=df1, aes(x=mle, y=llik), colour="black")
+g
+```
+
+Each unique MLE estimate (in black) has a basin of attraction indicated by the
+colored groups depicted above.
