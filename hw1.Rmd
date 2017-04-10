@@ -363,3 +363,46 @@ g
 
 Each unique MLE estimate (in black) has a basin of attraction indicated by the
 colored groups depicted above.
+
+
+# 3
+## 3.a
+```{r}
+df = data.frame(
+    x=c(0.02, 0.02, 0.06, 0.06, 0.11, 0.11, 0.22, 0.22, 0.56, 0.56, 1.10, 1.10),
+    y=c(47, 76, 97, 107, 123, 139, 152, 159, 191, 201, 200, 207)
+)
+
+fit = lm(y~x, data=df)
+b0 = fit$coefficients[1]
+b1 = fit$coefficients[2]
+t1 = 1/b0
+t2 = b1*t1
+```
+
+Our simplified estimates for $\theta_1$ and $\theta_2$ are
+$\hat{\theta}_1=`r t1`$ and 
+$\hat{\theta}_2=`r t2`$.
+
+## 3.b
+To implement the multivariate Newton-Rhapson method, we must first calculate
+
+$$
+g^{'}(\theta_1,\theta_2)=
+\left( \begin{array}{cc}
+\frac{\partial g}{\partial\theta_1} & \frac{\partial g}{\partial\theta_2} \end{array} \right)
+$$
+
+$$
+g^{''}(\theta_1,\theta_2)=
+\left( \begin{array}{cc}
+\frac{\partial^2g}{\partial\theta_1^2} & \frac{\partial^2g}{\partial\theta_1\partial\theta_2} \\
+\frac{\partial^2g}{\partial\theta_1\partial\theta_2} & \frac{\partial^2g}{\partial\theta_2^2} \end{array} \right)
+$$
+
+where $g(\theta_1,\theta_2) = \sum_{i=1}^n (y_i-\frac{x_i\theta_1}{x_i-\theta_2})^2$.
+$\frac{\partial g}{\partial\theta_1} =
+    \sum \frac{2x_i(\theta_1 x_i-y_i(x_i+\theta_2))}{(x_i+\theta_2)^2}$.
+$\frac{\partial g}{\partial\theta_2} =
+    \sum \frac{2\theta_1 x_i(y_i(\theta_2+x_i)-\theta_1
+    x_i)}{(\theta_2+x_i)^3}$.
