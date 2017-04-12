@@ -49,7 +49,7 @@ fpp = function(f, t, d){
 
 nr_inc = function(f, x, d){
     # Increment x using the newton rhapson method
-    print(paste("Incrementing", x))
+    # print(paste("Incrementing", x))
     return(x-f(x)/fp(f, x, d))
 }
 
@@ -62,7 +62,7 @@ find_0s = function(f, x0, e, d, inc_fxn){
         # must have the signature [pdf, x, delta]) e.g. nr_inc
         x0 = x1
         x1 = inc_fxn(f, x0, d)
-        print(paste("i:",i,"x0:",x0,"x1:",x1))
+        # print(paste("i:",i,"x0:",x0,"x1:",x1))
 
         # Check for algorithm failures and divergences
         if(is.na(x1)){
@@ -87,7 +87,7 @@ for(xi in xis){
     xmax = c(xmax, find_0s(f_find_0, xi, eps, delt, nr_inc))
 }
 
-print("Finished NR, starting on fI")
+# print("Finished NR, starting on fI")
 
 eps = 0.001 # convergence criterion
 delt = 0.001 # increment parameter for derivatives
@@ -151,7 +151,7 @@ g = qplot(df$theta, df$loglik) +
 g
 
 ## Solve for mle with MoM t0
-print("Working on pr2")
+# print("Working on pr2")
 eps = 0.001
 delt = 0.001
 t0 = asin(mean(raw) - pi)
@@ -170,13 +170,186 @@ t0s = seq(from=-pi+delt, to=pi-delt, length.out=N)
 mles = c()
 for(t0 in t0s){
     mle = find_0s(llikp, t0, eps, delt, nr_inc)
-    print(paste("t0",t0,"mle",mle))
+    # print(paste("t0",t0,"mle",mle))
     mles = c(mles, mle)
 }
 
 
 ### PROBLEM 3
+print('starting problem 3')
 df = data.frame(
     x=c(0.02, 0.02, 0.06, 0.06, 0.11, 0.11, 0.22, 0.22, 0.56, 0.56, 1.10, 1.10),
     y=c(47, 76, 97, 107, 123, 139, 152, 159, 191, 201, 200, 207)
 )
+
+fit = lm(y~x, data=df)
+b0 = fit$coefficients[1]
+b1 = fit$coefficients[2]
+t1 = 1/b0
+t2 = b1*t1
+# print(paste(t1, t2))
+
+# Define loss functions and its derivatives
+g = function(t, x, y){
+    # print("g")
+    # Multivariate OLS, requires type(x & y) = list(length=n), type(t)=list(2)
+    r = y - (t[1]*x)/(t[2]+x)
+    s = sum(r^2)
+    # print(s)
+    return(s)
+}
+
+dgdt1 = function(t, x, y){
+    # print("dgdt1")
+    t1 = t[1]
+    t2 = t[2]
+    r = 2*x*(t1*x-y*(x+t2))/(x+t2)^2
+    s = sum(r)
+    # print(s)
+    return(s)
+}
+dgdt2 = function(t, x, y){
+    # print("dgdt2")
+    t1 = t[1]
+    t2 = t[2]
+    r = -2*t1*x*(t1*x-y*(t2+x))/(t2+x)^3
+    s = sum(r)
+    # print(s)
+    return(s)
+}
+ddgdt1dt2 = function(t, x, y){
+    # print("ddgdt1dt2")
+    t1 = t[1]
+    t2 = t[2]
+    r = -2*x*(2*t1-y*(x+t2))/(x+t2)^3
+    s = sum(r)
+    # print(s)
+    return(s)
+}
+ddgdt12 = function(t, x, y){
+    # print("ddgdt12")
+    t1 = t[1]
+    t2 = t[2]
+    r = -2*x^2/(x+t2)^2
+    s = sum(r)
+    # print(s)
+    return(s)
+}
+ddgdt22 = function(t, x, y){
+    # print("ddgdt22")
+    t1 = t[1]
+    t2 = t[2]
+    r = 2*t1*x*(3*t1*x-2*y*(t2+x))/(t2+x)^4
+    s = sum(r)
+    # print(s)
+    return(s)
+}
+
+gp = function(t, x, y){
+    # print("gp")
+    g1 = dgdt1(t, x, y)
+    g2 = dgdt2(t, x, y)
+    s = c(g1, g2)
+    print(s)
+    return(s)
+}
+gpp = function(t, x, y){
+    # print("gpp")
+    g11 = ddgdt12(t, x, y)
+    g12 = ddgdt1dt2(t, x, y)
+    g22 = ddgdt22(t, x, y)
+    m = c(g11, g12, g12, g22)
+    s = matrix(m, 2, 2)
+    # print(s)
+    return(s)
+}
+
+gpn = function(t, x, y, d){
+    # numeric first derivative
+    t01 = c(t[1]-d, t[2])
+    t11 = c(t[1]+d, t[2])
+    dt1 = (g(t11, x, y)-g(t01, x, y))/(2*d)
+    # print(paste("numerical dt1:", dt1))
+
+    t02 = c(t[1], t[2]-d)
+    t12 = c(t[1], t[2]+d)
+    dt2 = (g(t12, x, y)-g(t02, x, y))/(2*d)
+    # print(paste("numerical dt2:", dt2))
+
+    r = c(dt1, dt2)
+    return(r)
+}
+
+gppn = function(t, x, y, d){
+    # numeric second derivative
+    t01 = c(t[1]-d, t[2])
+    t11 = c(t[1]+d, t[2])
+    dt1 = (g(t11, x, y)-g(t01, x, y))/(2*d)
+    # print(paste("numerical dt1:", dt1))
+
+    t02 = c(t[1], t[2]-d)
+    t12 = c(t[1], t[2]+d)
+    dt2 = (g(t12, x, y)-g(t02, x, y))/(2*d)
+    # print(paste("numerical dt2:", dt2))
+
+    r = c(dt1, dt2)
+    return(r)
+}
+
+# Define iteration function
+nr_itt = function(t, x, y, d){
+
+    gp1 = gp(t, x, y)
+    gp2 = gpp(t, x, y)
+    gp1n = gpn(t, x, y, d)
+    print(paste("analytical gp1:", gp1))
+    print(paste("analytical gp2:", gp2))
+    print(paste("numerical gp1:", gp1n))
+
+    t1 = t - solve(gp2) %*% gp1
+    print(paste("old t:", t))
+    print(paste("new t:", t1))
+    return(t1)
+}
+
+# Parameterize algorithm
+eps = 0.001
+del = 0.0001
+x = df$x
+y = df$y
+tn = c(t1, t2) # MoM as t_0
+tnp1 = nr_itt(tn, x, y, del)
+
+# Gradient descent
+print("Entering multidimensional gradient descent")
+i = 0
+while(t(tn) %*% tnp1>eps){
+    i = i + 1
+    print(paste("working on itt", i))
+    tn = tnp1
+    tnp1 = nr_itt(tn, x, y, del)
+    # print(tn)
+    if(i>0){break}
+}
+
+# Numerical plotting the g()
+ff = function(t1, t2){
+    t = c(t1,t2)
+    r = g(t, df$x, df$y)
+}
+N = 150
+rng = seq(-1,1,length=N)
+pltdf = data.frame(x=rep(0, N^2), y=rep(0, N^2), z=rep(0, N^2))
+i = 1
+for(x in rng){
+    for(y in rng){
+        r = c(x, y, ff(x, y))
+        pltdf[i,] = r
+        i = i + 1
+    }
+    print(i)
+}
+
+plt = ggplot(pltdf, aes(x=x, y=y, color=z, z=z)) + geom_point() + geom_contour()
+df1 = data.frame(x=t1, y=t2, z=ff(t1,t2))
+plt = plt + geom_point(data=df1, aes(x=x, y=y), colour="green")

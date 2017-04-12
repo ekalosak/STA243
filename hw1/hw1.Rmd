@@ -616,6 +616,3 @@ The steepest descent method produces
 $\hat{\theta}_1=`r tn[1]`$ and
 $\hat{\theta}_2=`r tn[2]`$.
 This result is consistent with our rough grid search estimate from part 3.b.
-
-## 3.d
-Using Gauss-Newton,
