@@ -34,6 +34,45 @@ random_chromosome = function(num_genes, nucleobases=c(0,1)){
     return(x)
 }
 
+mate_chromosomes = function(parents, xr=0.1, mr=0.1){
+    # Produce a single offspring from parent chromosomes (p1, p2) with a
+    # crossover rate (xr) and a mutation rate (mr)
+
+    p1 = parents[1]
+    p2 = parents[2]
+    stopifnot(nchar(p1) == nchar(p2))
+
+    child = paste(rep("0", nchar(p1)), collapse='') # initialize child "000..."
+
+    w = 1 # crossover parameter
+    for(i in 1:nchar(p1)){
+
+        # Give child parents' genes for each gene (i)
+        #   from p1 if w == 1
+        #   from p2 if w == 0
+        if(w){
+            child[i] = p1[i]
+        }else{
+            child[i] = p2[i]
+        }
+
+        # Mutate gene
+        if(runif(1)<mr){
+            child[i] = (child[i] + 1) %% 2
+        }
+
+        # Crossover if required
+        if(runif(1)<xr){
+            w = (w + 1) %% 2
+        }
+    }
+    return(child)
+}
+
+fitness = function(population, raw){
+    #TODO:
+}
+
 ## Generate observations
 # TODO: replace simple raw data with the generator given in the homework
 raw = c(0,0,0,1,1,1,1,5,5,5,6,6,2,2,2,2,2,2,3,1,1,1)
@@ -49,11 +88,11 @@ plt1 = ggplot(raw_df, aes(x=x, y=y)) +
     ggtitle("Raw observations")
 
 ## Parameterize algoritm and initialize major objects
-pop_col_names = c("Chromosome", "Loss", "Generation")
+pop_col_names = c("Chromosome", "Fitness", "Generation")
 pop = data.frame(matrix(ncol = 3, nrow = 0))   # Holds all individuals
 colnames(pop) = pop_col_names
-K = 50  # Number of chromosomes in each generation
-G = 10  # Maximum number of generations
+K = 20  # Number of chromosomes in each generation
+G = 70  # Maximum number of generations
 
 ## Initialize first generation
 g = 1
@@ -62,6 +101,30 @@ for(i in 1:K){
     individual = c(x, NA, g)
     pop[dim(pop)[1]+1,] = individual
 }
+
+## Calculate fitness and mate each generation
+for(g in 2:G){
+    parent_generation = pop[pop$Generation == g-1,]
+    parent_fitness = fitness(parent_generation, raw)
+    # Put parent fitness into main dataframe
+    pop[rownames(parent_generation),]$Fitness = parent_fitness
+
+    for(k in 1:K){
+        parents = sample(parent_generation,
+                         2,
+                         replace=TRUE,
+                         prob=parent_fitness)
+        child_chromosome = mate_chromosomes(parents)
+        child = c(child_chromosome, NA, g)
+        pop[dim(pop)[1]+1,] = child
+    }
+}
+#TODO: plot max_fitness as a function of generation
+
+## Recover and plot max fitness chromosome
+max_fitness_chromosome = pop$Chromosome[pop$Fitness == max(pop$Fitness)]
+#TODO: ensure there is only one max_fitness_chromosome
+#TODO: plot this chromosome with the raw data
 
 ##### END: Genetic algorithm
 
@@ -86,14 +149,3 @@ for(i in 1:K){
 # y<-f+rnorm(f)/3
 # plot(x,y)
 # lines(x,f)
-
-# enc_chromosome = function(x){
-#     # Encode the string of 1's and 0's into an integer
-#     return(strtoi(x, base=2))
-# }
-
-# dec_chromosome = function(x){
-#     # Decode the integer into a string of 1's and 0's
-#     return(paste(as.integer(intToBits(x)), collapse=''))
-# }
-
