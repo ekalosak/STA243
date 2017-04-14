@@ -69,8 +69,48 @@ mate_chromosomes = function(parents, xr=0.1, mr=0.1){
     return(child)
 }
 
+loss_fxn = function(segment_observns){
+    # Sum of square distance from mean
+    return(
+        sum((segment_observns - mean(segment_observns))^2)
+    )
+}
+
 fitness = function(population, raw){
-    #TODO:
+    # Calculate fitness for each individual in the population relative to the
+    #   raw data. Return a vector of floats.
+
+    # Check that input is ok
+    stopifnot(nchar(population$Chromosomes[1]) + 1 == length(raw))
+
+    # Initialize parameters
+    losses = c()
+    K = dim(population)[1]  # (K) is number of individuals in population
+
+    for(k in 1:K){ # for each individual in the population
+        x = population$Chromosome[k] # the individual's chromosome
+        segment_observations = c(raw[1])
+        loss = 0 # initialize base loss to 0
+
+        for(i in 1:nchar(x)){ # for each gene in the chromosome
+            if(x[i]){ # if the gene indicates a breakpoint
+                # calculate and increment overall loss by segment loss
+                loss = loss + loss_fxn(segment_observations)
+                segment_observations = c(raw[i+1]) # reset to next segment
+
+            }else{ # if the gene does not indicate a breakpoint
+                # extend the segment
+                segment_observations = c(segment_observations, raw[i+1])
+            }
+        }
+
+        # Calculate loss for final segment
+        loss = loss + loss_fxn(segment_observations)
+
+        losses = c(losses, loss) # record that individual's loss
+    }
+
+    return(losses)
 }
 
 ## Generate observations
