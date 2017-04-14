@@ -23,6 +23,7 @@ rm(list=ls())
 
 ## Imports
 library("ggplot2")
+library("dplyr")
 
 ## Subroutines
 random_chromosome = function(num_genes, nucleobases=c(0,1)){
@@ -40,6 +41,7 @@ mate_chromosomes = function(parents, xr=0.1, mr=0.1){
 
     p1 = parents[1]
     p2 = parents[2]
+    browser()
     stopifnot(nchar(p1) == nchar(p2))
 
     child = paste(rep("0", nchar(p1)), collapse='') # initialize child "000..."
@@ -76,6 +78,12 @@ loss_fxn = function(segment_observns){
     )
 }
 
+complexity_penalty = function(x){
+    # Penalize the chromosome for the number of breakpoints it has
+    n_1s = sum(as.numeric(strsplit(x, split="")[[1]]))
+    return(log(n_1s + 2))
+}
+
 fitness = function(population, raw){
     # Calculate fitness for each individual in the population relative to the
     #   raw data. Return a vector of floats.
@@ -93,7 +101,9 @@ fitness = function(population, raw){
         loss = 0 # initialize base loss to 0
 
         for(i in 1:nchar(x)){ # for each gene in the chromosome
-            if(x[i]){ # if the gene indicates a breakpoint
+            g = as.integer(substr(x, i, i)) # extract the gene from the string
+
+            if(g){ # if the gene indicates a breakpoint
                 # calculate and increment overall loss by segment loss
                 loss = loss + loss_fxn(segment_observations)
                 segment_observations = c(raw[i+1]) # reset to next segment
@@ -106,16 +116,21 @@ fitness = function(population, raw){
 
         # Calculate loss for final segment
         loss = loss + loss_fxn(segment_observations)
+        # Penalize for complexity
+        loss = loss * complexity_penalty(x)
 
         losses = c(losses, loss) # record that individual's loss
     }
 
-    return(losses)
+    fitness = max(losses)+1 - losses # so higher loss is lower fitness, all >0
+    fitness = fitness/max(fitness) # normalize to (0,1)
+    return(fitness)
 }
 
 ## Generate observations
 # TODO: replace simple raw data with the generator given in the homework
 raw = c(0,0,0,1,1,1,1,5,5,5,6,6,2,2,2,2,2,2,3,1,1,1)
+truth = "001000100101000001100"
 sd = 0.3
 N = length(raw)
 raw = raw + rnorm(N, sd=sd)
@@ -148,13 +163,15 @@ for(g in 2:G){
     parent_fitness = fitness(parent_generation, raw)
     # Put parent fitness into main dataframe
     pop[rownames(parent_generation),]$Fitness = parent_fitness
+    parent_generation$Fitness = parent_fitness # inelegant but effective
 
     for(k in 1:K){
-        parents = sample(parent_generation,
+        parents = sample_n(parent_generation,
                          2,
-                         replace=TRUE,
-                         prob=parent_fitness)
-        child_chromosome = mate_chromosomes(parents)
+                         replace=FALSE,
+                         weight=Fitness)
+        parent_chromosomes = parents$Chromosome
+        child_chromosome = mate_chromosomes(parent_chromosomes)
         child = c(child_chromosome, NA, g)
         pop[dim(pop)[1]+1,] = child
     }
