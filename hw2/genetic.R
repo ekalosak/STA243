@@ -1,7 +1,7 @@
 ### Author: Eric Kalosa-Kenyon
-### STA 243 Hw2 - Genetic algorithms and simulated annealing
+### STA 243 Hw2 - Genetic algorithms
 
-##### BEGIN: Genetic algorithm
+##### BEGIN
 
 ### Purpose of this algorithm
 #   The goal of this program is to find an optimal solution for a piecewise
@@ -78,18 +78,17 @@ loss_fxn = function(segment_observns){
     )
 }
 
-complexity_penalty = function(x){
-    # Penalize the chromosome for the number of breakpoints it has
-    n_1s = sum(as.numeric(strsplit(x, split="")[[1]]))
-    return(log(n_1s + 2))
-}
-
-fitness = function(population, raw){
+fitness = function(population, raw, complexity="AIC"){
     # Calculate fitness for each individual in the population relative to the
-    #   raw data. Return a vector of floats.
+    #   raw data.
+    #   Complexity is either "AIC" or "MDL". Raw is the raw data to fit.
+    # TODO: Incorporate complexity loss as option of MDL, AIC
+    # Return a vector of floats between 0 and 1.
+    #   The AIC and MDL are normalized to [0,1]
 
     # Check that input is ok
     stopifnot(nchar(population$Chromosomes[1]) + 1 == length(raw))
+    stopifnot(complexity == "AIC" || complexity == "MDL")
 
     # Initialize parameters
     losses = c()
@@ -116,15 +115,31 @@ fitness = function(population, raw){
 
         # Calculate loss for final segment
         loss = loss + loss_fxn(segment_observations)
-        # Penalize for complexity
-        loss = loss * complexity_penalty(x)
 
         losses = c(losses, loss) # record that individual's loss
     }
 
-    fitness = max(losses)+1 - losses # so higher loss is lower fitness, all >0
-    fitness = fitness/max(fitness) # normalize to (0,1)
-    return(fitness)
+    # Penalize for complexity
+    if(complexity=="AIC"){
+        ns_params = sapply( # vector of integers summing number of breakpoints
+                        lapply(
+                            strsplit(population$Chromosome,""),
+                            as.integer),
+                        sum) + 1 # number of constants is breaks + 1
+        # AIC is k-ln(L)
+        #   because L proportional to e^(-sum((x-u)^2)),
+        #   ln(L) is proportional to -sum(square error)
+        #   losses is vector of sum(square losses) so
+        AIC = ns_params + losses # this can be further parameterized
+        fitnesses = -AIC + max(AIC) + 0.001 # low AIC is high fitness
+
+    }else if(complexity=="MDL"){
+        browser()
+    }
+
+    browser()
+    fitnesses = fitnesses/max(fitnesses) # normalize to (0,1)
+    return(fitnesses)
 }
 
 ## Generate observations
@@ -158,12 +173,13 @@ for(i in 1:K){
 }
 
 ## Calculate fitness and mate each generation
+which_penalty = "AIC" # or "MDL", both are calculated
 for(g in 2:G){
     parent_generation = pop[pop$Generation == g-1,]
-    parent_fitness = fitness(parent_generation, raw)
+    parent_aic_mdl = fitness(parent_generation, raw)
     # Put parent fitness into main dataframe
-    pop[rownames(parent_generation),]$Fitness = parent_fitness
-    parent_generation$Fitness = parent_fitness # inelegant but effective
+    pop[rownames(parent_generation),]$Fitness = parent_aic_mdl
+    parent_generation$Fitness = parent_aic_mdl # inelegant but effective
 
     for(k in 1:K){
         parents = sample_n(parent_generation,
