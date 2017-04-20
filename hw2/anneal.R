@@ -54,6 +54,15 @@ temp = function(r){
     exp(1-r)
 }
 
+path_len = function(s, DM=D){
+    r = 0
+    N = length(s)
+    for(i in 1:(N-1)){
+        r = r + DM[s[i],s[i+1]]
+    }
+    return(r)
+}
+
 nhbd = function(s, k = 2){
     # Generate a neighborhood around path (s = e.g. [1,4,2,3] for N=4)
     #   which consists of all sigma(s) where sigma is a k-cycle rotation with k
@@ -61,6 +70,7 @@ nhbd = function(s, k = 2){
 
     # Check input
     N = length(s)
+    stopifnot(N > 2)
     stopifnot(k >= 2) # 1 cycle neighborhood is identity
     stopifnot(k <= N) # there are no N+1 cycles in Z/Z_{N}
 
@@ -102,5 +112,8 @@ k_max = 1000
 s0 = sample(1:N) # Starting path sampled uniformly at random
 for(k in 1:k_max){
     tt = temp(k/k_max)
+    s1 = nhbd(s0)
+    h0 = path_len(s0)
+    h1 = path_len(s1)
 
 }
