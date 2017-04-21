@@ -137,38 +137,15 @@ fitness = function(population, raw){
     # Initialize parameters
     losses = c()
     K = dim(population)[1]  # (K) is number of individuals in population
-    n = length(raw)
+    n = length(raw) # (n) is the number of data observations
 
-    for(k in 1:K){ # for each individual in the population
-        x = population$Chromosome[k] # the individual's chromosome
-
-        segment_observations = c(raw[1])
-        loss = 0 # initialize base loss to 0
-
-        for(i in 1:nchar(x)){ # for each gene in the chromosome
-            g = as.integer(substr(x, i, i)) # extract the gene from the string
-
-            if(g){ # if the gene indicates a breakpoint
-                # calculate and increment overall loss by segment loss
-                loss = loss + loss_fxn(segment_observations)
-                segment_observations = c(raw[i+1]) # reset to next segment
-
-            }else{ # if the gene does not indicate a breakpoint
-                # extend the segment
-                segment_observations = c(segment_observations, raw[i+1])
-            }
-        }
-
-        # Calculate loss for final segment
-        loss = loss + loss_fxn(segment_observations)
-
-        regr = regress_chromosome(x, raw)
-        loss2 = regression_loss(regr, loss)
-        browser() # CHECK that loss == loss2, then delete preceeding paragraph
-
+    # Calculate losses for each individual in the generation
+    for(k in 1:K){
+        x = population$Chromosome[k] # extract a chromosome
+        regr = regress_chromosome(x, raw) # calculate the regression
+        loss = regression_loss(regr, raw) # and calculate the loss
         losses = c(losses, loss) # record that individual's loss
     }
-
 
     ## Penalize for complexity
     ns_params = sapply( # vector of integers summing number of breakpoints
@@ -182,7 +159,7 @@ fitness = function(population, raw){
     AIC = 2*log(n)*ns_params + n*log(losses/n)
     # Note that this AIC can be alternatively parameterized
 
-    # calculate sum of log(\hat{n_j})
+    # calculate sum of log(\hat{n_j}) for MDL calculation
     # sum_n_hat = for each chromosome, length of 0s between 1s plus 1
     sum_n_hat = sapply(
                     lapply( # for each chromosome, get \hat{n_j}'s
@@ -200,23 +177,56 @@ fitness = function(population, raw){
     return(list(AIC, MDL))
 }
 
-plot_chromosome = function(chrom, raw_df){
+plot_chromosome = function(chrom, raw_df, color="blue"){
     # return a ggplot object with piecewise constants plotted on the scatter
 
-    chrs = unlist(strsplit(chrom,"")) # split string into c(characters)
-    ints = as.integer(chrs)
-
-    n = dim(raw_df)[1] # number of datapoints
-    fhat = c() # regressed variable
-    for(i in 1:n){
-    }
-
-    browser()
+    fhat = regress_chromosome(chrom, raw_df$y)
+    fhat_df = data.frame(x=raw_df$x, y=fhat)
 
     plt = ggplot(raw_df, aes(x=x, y=y)) +
         geom_point() +
+        geom_line(data=fhat_df, color=color) +
         xlab("Index") + ylab("Value") +
         ggtitle(paste("Chromosome", chrom))
+
+    return(plt)
+}
+
+plot_generation = function(gen, raw_df, wh_score="AIC"){
+    # return a ggplot object with piecewise constants plotted on the scatter
+    #   for each chromosome in the generation
+    # Currently, colorized lines based on AIC/MDL are unimplemented
+
+    wh_gen = gen$Generation[1]
+
+    # prepare base plot
+    plt = ggplot(raw_df, aes(x=x, y=y)) +
+        geom_point() +
+        xlab("Index") + ylab("Value") +
+        ggtitle(paste("Generation", wh_gen, wh_score))
+
+    # prepare regression data for plotting
+    fhat_df = data.frame(matrix(ncol = 5, nrow = 0))
+    colnames(fhat_df) = c("x","y","Group","AIC","MDL")
+    for(i in 1:dim(gen)[1]){
+        chrom = gen$Chromosome[i]
+        fhat = regress_chromosome(chrom, raw_df$y)
+        fhat_df_i = data.frame(x=raw_df$x, y=fhat)
+        fhat_df_i$Group = i
+        fhat_df_i$AIC = as.numeric(gen$AIC[i])
+        fhat_df_i$MDL = as.numeric(gen$MDL[i])
+        fhat_df = rbind(fhat_df, fhat_df_i)
+    }
+
+    # add geomlines for aic or mdl depending on which was passed into this fxn
+    if(wh_score=="AIC"){
+        plt = plt + geom_line(data=fhat_df, aes(color=AIC, group=Group))
+    }else if(wh_score=="MDL"){
+        plt = plt + geom_line(data=fhat_df, aes(color=MDL, group=Group))
+    }
+
+    # plot AIC or MDL in a color gradient
+    plt = plt + scale_colour_gradientn(colours=rainbow(4))
 
     return(plt)
 }
@@ -232,7 +242,7 @@ raw = raw + rnorm(N, sd=sd)
 
 # Plot the generated data
 raw_df = data.frame(y=raw, x=1:length(raw))
-plt1 = ggplot(raw_df, aes(x=x, y=y)) +
+plt_raw = ggplot(raw_df, aes(x=x, y=y)) +
     geom_point() +
     xlab("Index") + ylab("Value") +
     ggtitle("Raw observations")
@@ -242,7 +252,7 @@ pop_col_names = c("Chromosome", "AIC", "MDL", "Generation")
 pop = data.frame(matrix(ncol = 4, nrow = 0))   # Holds all individuals
 colnames(pop) = pop_col_names
 K = 20  # Number of chromosomes in each generation
-G = 70  # Maximum number of generations
+G = 30  # Maximum number of generations
 
 ## Initialize first generation
 g = 1
@@ -302,22 +312,25 @@ aic_mdl = fitness(last_gen, raw)
 pop[rownames(last_gen),]$AIC = aic_mdl[[1]]
 pop[rownames(last_gen),]$MDL = aic_mdl[[2]]
 
-## Plotting results
-#TODO: plot max_fitness as a function of generation
-# REVIEW
-plot_chromosome(truth, raw_df)
-browser()
 
-## Recover and plot max fitness chromosome
-max_fitness_chromosome = pop$Chromosome[pop$Fitness == max(pop$Fitness)]
-#TODO: ensure there is only one max_fitness_chromosome
-#TODO: plot this chromosome with the raw data
+## Plotting results
+# First, plot the true chromosome
+plt_tru = plot_chromosome(truth, raw_df, color="green") +
+    ggtitle("Ground truth")
+
+# Plot first and last generation colored by AIC
+fgen = pop[pop$Generation==1,]
+lgen = pop[pop$Generation==G,]
+plt_fgen_aic = plot_generation(fgen, raw_df, "AIC")
+plt_lgen_aic = plot_generation(lgen, raw_df, "AIC")
+
+# Plot first and last generation colored by MDL
+plt_fgen_mdl = plot_generation(fgen, raw_df, "MDL")
+plt_lgen_mdl = plot_generation(lgen, raw_df, "MDL")
 
 ##### END: Genetic algorithm
 
 ### NOTES:
-
-# stopifnot(a==b) # R's version of assert
 
 # # Given function in hw handout, used for evaluating fitness
 # truefunction<-function(x){
