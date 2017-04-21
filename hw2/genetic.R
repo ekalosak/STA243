@@ -1,7 +1,7 @@
 ### Author: Eric Kalosa-Kenyon
 ### STA 243 Hw2 - Genetic algorithms
 
-##### BEGIN
+##### BEGIN: Introduction
 
 ### Purpose of this algorithm
 #   The goal of this program is to find an optimal solution for a piecewise
@@ -18,6 +18,8 @@
 #   Mate individuals proportional to fitness
 # Plot result
 
+##### END: Introduction
+
 ##### BEGIN: Code
 rm(list=ls())
 
@@ -25,7 +27,14 @@ rm(list=ls())
 library("ggplot2")
 library("dplyr")
 
-### Subroutines
+### Parameterize script
+K = 20  # Number of chromosomes in each generation
+G = 30  # Maximum number of generations
+Pcross = 0.1 # Crossover rate
+Pmutate = 0.05 # Mutation rate
+which_penalty = "AIC" # "AIC" or "MDL"
+
+### BEGIN: Subroutines
 random_chromosome = function(num_genes, nucleobases=c(0,1)){
     # Generates a chromosome
     #   lenght of chromosome is (num_genes)
@@ -123,10 +132,16 @@ calc_AIC = function(n, k, loss){
     #   loss is losses
     #   k and loss can be c() as long as they have the same length
     # Note that this AIC can be alternatively parameterized
-    return(2*log(n)*k + n*log(loss/n))
+
+    r = 2*log(n)*k + n*log(loss/n)
+    return(r)
 }
 
 count_params = function(vec_of_chromosomes){
+    # given a vector of chromosomes (each is "00111010111...")
+    #   count the number of segments this represents i.e. the number of
+    #   parameters that are implicitly contained in this chromosome.
+
     r = sapply( # vector of integers summing number of breakpoints
             lapply(
                 strsplit(vec_of_chromosomes, ""),
@@ -191,8 +206,7 @@ plot_chromosome = function(chrom, raw_df, color="blue"){
     plt = ggplot(raw_df, aes(x=x, y=y)) +
         geom_point() +
         geom_line(data=fhat_df, color=color) +
-        xlab("Index") + ylab("Value") +
-        ggtitle(paste("Chromosome", chrom))
+        xlab("Index") + ylab("Value")
 
     return(plt)
 }
@@ -236,28 +250,40 @@ plot_generation = function(gen, raw_df, wh_score="AIC"){
     return(plt)
 }
 
+### END: Subroutines
+
+### BEGIN: Simulation
+
 ## Generate observations
-# TODO: replace simple raw data with the generator given in the homework
-raw = c(0,0,0,1,1,1,1,5,5,5,6,6,2,2,2,2,2,2,3,1,1,1)
-truth = "001000100101000001100"
-sd = 0.3
-which_penalty = "AIC" # or "MDL", both are calculated
-N = length(raw)
-raw = raw + rnorm(N, sd=sd)
 
-# Plot the generated data
-raw_df = data.frame(y=raw, x=1:length(raw))
-plt_raw = ggplot(raw_df, aes(x=x, y=y)) +
-    geom_point() +
-    xlab("Index") + ylab("Value") +
-    ggtitle("Raw observations")
+# # Small testing dataset in this paragraph
+# raw = c(0,0,0,1,1,1,1,5,5,5,6,6,2,2,2,2,2,2,3,1,1,1)
+# truth = "001000100101000001100"
+# sd = 0.3 # used for generating observations from (raw)
+# N = length(raw)
+# raw = raw + rnorm(N, sd=sd)
 
-## Parameterize algoritm and initialize major objects
+# True data given in homework
+truefunction<-function(x){
+    t <- c(0.1, 0.13, 0.15, 0.23, 0.25, 0.4, 0.44, 0.65, 0.76, 0.78, 0.81)
+    h <- c(4, -5, 3, -4, 5, -4.2, 2.1, 4.3, -3.1, 2.1, -4.2)
+    temp <- 0
+    for(i in 1:11) {
+        temp <- temp + h[i]/2 * (1 + sign(x - t[i]))
+    }
+    return(temp)
+}
+ndata = 512
+xdata = (0:(ndata-1))/ndata
+ydata = truefunction(xdata)
+set.seed(0401)
+N = length(ydata)
+raw = ydata + rnorm(N)/3
+
+## Initialize major objects
 pop_col_names = c("Chromosome", "AIC", "MDL", "Generation")
 pop = data.frame(matrix(ncol = 4, nrow = 0))   # Holds all individuals
 colnames(pop) = pop_col_names
-K = 20  # Number of chromosomes in each generation
-G = 30  # Maximum number of generations
 
 ## Initialize first generation
 g = 1
@@ -269,6 +295,7 @@ for(i in 1:K){
 
 ## Calculate fitness and mate each generation
 for(g in 2:G){
+    print(paste("starting on generation", g))
     parent_generation = pop[pop$Generation == g-1,]
     parent_aic_mdl = fitness(parent_generation, raw)
     # Put parent fitness into main dataframe
@@ -304,7 +331,11 @@ for(g in 2:G){
         }
 
         parent_chromosomes = parents$Chromosome
-        child_chromosome = mate_chromosomes(parent_chromosomes)
+        child_chromosome = mate_chromosomes(
+                                parent_chromosomes,
+                                Pcross,
+                                Pmutate
+                            )
         child = c(child_chromosome, NA, NA, g)
         pop[dim(pop)[1]+1,] = child
     }
@@ -317,40 +348,47 @@ aic_mdl = fitness(last_gen, raw)
 pop[rownames(last_gen),]$AIC = aic_mdl[[1]]
 pop[rownames(last_gen),]$MDL = aic_mdl[[2]]
 
+### END: Simulation
 
-## Plotting results
-# First, plot the true chromosome
-plt_tru = plot_chromosome(truth, raw_df, color="green") +
-    ggtitle("Ground truth")
+### BEGIN: Plotting
 
-# Plot first and last generation colored by AIC
+# Plot observations
+raw_df = data.frame(y=raw, x=1:length(raw))
+plt_raw = ggplot(raw_df, aes(x=x, y=y)) +
+    geom_point() +
+    xlab("Index") + ylab("Value") +
+    ggtitle("Raw observations")
+
+# # Plot true chromosome
+# plt_tru = plot_chromosome(truth, raw_df, color="green") +
+#     ggtitle("Ground truth")
+
+# Plot first and last generation colored by AIC or MDL
 fgen = pop[pop$Generation==1,]
 lgen = pop[pop$Generation==G,]
-plt_fgen_aic = plot_generation(fgen, raw_df, "AIC")
-plt_lgen_aic = plot_generation(lgen, raw_df, "AIC")
+plt_fgen = plot_generation(fgen, raw_df, which_penalty)
+plt_lgen = plot_generation(lgen, raw_df, which_penalty)
 
-# Plot first and last generation colored by MDL
-plt_fgen_mdl = plot_generation(fgen, raw_df, "MDL")
-plt_lgen_mdl = plot_generation(lgen, raw_df, "MDL")
+# Plot best AIC or MDL
+if(which_penalty=="AIC"){
+    best_score = min(as.numeric(pop$AIC))
+    which_organism_is_best = which(as.numeric(pop$AIC) == best_score)
+}else if(which_penalty=="MDL"){
+    best_score = min(as.numeric(pop$MDL))
+    which_organism_is_best = which(as.numeric(pop$MDL) == best_score)
+}
 
-##### END: Genetic algorithm
+best_chromosome = pop$Chromosome[which_organism_is_best]
+plt_best = plot_chromosome(best_chromosome, raw_df, color="green") +
+    ggtitle(
+        paste(
+            "Chromosome ", substr(best_chromosome, 1, 12), "... ",
+            "with ", which_penalty, "=", best_score,
+            sep=""
+        ))
+
+### END: Plotting
+
+##### END: Code
 
 ### NOTES:
-
-# # Given function in hw handout, used for evaluating fitness
-# truefunction<-function(x){
-#     t <- c(0.1, 0.13, 0.15, 0.23, 0.25, 0.4, 0.44, 0.65, 0.76, 0.78, 0.81)
-#     h <- c(4, -5, 3, -4, 5, -4.2, 2.1, 4.3, -3.1, 2.1, -4.2)
-#     temp <- 0
-#     for(i in 1:11) {
-#         temp <- temp + h[i]/2 * (1 + sign(x - t[i]))
-#     }
-#     return(temp)
-# }
-# n<-512
-# x<-(0:(n-1))/n
-# f<-truefunction(x)
-# set.seed(0401)
-# y<-f+rnorm(f)/3
-# plot(x,y)
-# lines(x,f)
