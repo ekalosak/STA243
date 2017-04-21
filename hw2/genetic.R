@@ -28,8 +28,8 @@ library("ggplot2")
 library("dplyr")
 
 ### Parameterize script
-K = 20  # Number of chromosomes in each generation
-G = 30  # Maximum number of generations
+K = 75  # Number of chromosomes in each generation
+Gmax = 20  # Maximum number of generations
 Pcross = 0.1 # Crossover rate
 Pmutate = 0.05 # Mutation rate
 which_penalty = "AIC" # "AIC" or "MDL"
@@ -250,6 +250,21 @@ plot_generation = function(gen, raw_df, wh_score="AIC"){
     return(plt)
 }
 
+best_score_and_org = function(population, wh_score){
+    # Determine best score in the population and which organism achieved it
+    if(wh_score=="AIC"){
+        best_score = min(as.numeric(population$AIC))
+        which_organism_is_best = which(
+            as.numeric(population$AIC) == best_score)[1]
+    }else if(wh_score=="MDL"){
+        best_score = min(as.numeric(population$MDL))
+        which_organism_is_best = which(
+            as.numeric(population$MDL) == best_score)[1]
+    }
+
+    return(list(best_score, which_organism_is_best))
+}
+
 ### END: Subroutines
 
 ### BEGIN: Simulation
@@ -294,7 +309,7 @@ for(i in 1:K){
 }
 
 ## Calculate fitness and mate each generation
-for(g in 2:G){
+for(g in 2:Gmax){
     print(paste("starting on generation", g))
     parent_generation = pop[pop$Generation == g-1,]
     parent_aic_mdl = fitness(parent_generation, raw)
@@ -326,7 +341,7 @@ for(g in 2:G){
         } else if(which_penalty == "MDL"){
             parents = sample_n(parent_generation,
                              2,
-                             replace=TRUE, # require sexual reproduction
+                             replace=TRUE,
                              weight=nMDL)
         }
 
@@ -339,10 +354,13 @@ for(g in 2:G){
         child = c(child_chromosome, NA, NA, g)
         pop[dim(pop)[1]+1,] = child
     }
+
+    # TODO: add score checking convergence criterion
+
 }
 
 # Calculate final AIC/MDL
-last_gen = pop[pop$Generation == G,]
+last_gen = pop[pop$Generation == Gmax,]
 aic_mdl = fitness(last_gen, raw)
 # Put last fitness into main dataframe
 pop[rownames(last_gen),]$AIC = aic_mdl[[1]]
@@ -365,7 +383,7 @@ plt_raw = ggplot(raw_df, aes(x=x, y=y)) +
 
 # Plot first and last generation colored by AIC or MDL
 fgen = pop[pop$Generation==1,]
-lgen = pop[pop$Generation==G,]
+lgen = pop[pop$Generation==Gmax,]
 plt_fgen = plot_generation(fgen, raw_df, which_penalty)
 plt_lgen = plot_generation(lgen, raw_df, which_penalty)
 
