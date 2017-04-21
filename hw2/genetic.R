@@ -18,14 +18,14 @@
 #   Mate individuals proportional to fitness
 # Plot result
 
-### BEGIN: Code
+##### BEGIN: Code
 rm(list=ls())
 
-## Imports
+### Imports
 library("ggplot2")
 library("dplyr")
 
-## Subroutines
+### Subroutines
 random_chromosome = function(num_genes, nucleobases=c(0,1)){
     # Generates a chromosome
     #   lenght of chromosome is (num_genes)
@@ -44,7 +44,6 @@ mate_chromosomes = function(parents, xr=0.1, mr=0.1){
     stopifnot(nchar(p1) == nchar(p2))
 
     child = ""
-
     w = 1 # crossover parameter
     for(i in 1:nchar(p1)){
 
@@ -71,13 +70,6 @@ mate_chromosomes = function(parents, xr=0.1, mr=0.1){
         }
     }
     return(child)
-}
-
-loss_fxn = function(segment_observns){
-    # Sum of square distance from mean
-    return(
-        sum((segment_observns - mean(segment_observns))^2)
-    )
 }
 
 regression_loss = function(reg, raw){
@@ -124,6 +116,25 @@ regress_chromosome = function(chrom, raw){
     return(regression)
 }
 
+calc_AIC = function(n, k, loss){
+    # AIC is k-ln(sum sq losses)
+    #   n is positive integer
+    #   k is num params
+    #   loss is losses
+    #   k and loss can be c() as long as they have the same length
+    # Note that this AIC can be alternatively parameterized
+    return(2*log(n)*k + n*log(loss/n))
+}
+
+count_params = function(vec_of_chromosomes){
+    r = sapply( # vector of integers summing number of breakpoints
+            lapply(
+                strsplit(vec_of_chromosomes, ""),
+                as.integer),
+            sum) + 1 # number of constants is breaks + 1
+    return(r)
+}
+
 fitness = function(population, raw){
     # Calculate fitness for each individual in the population relative to the
     #   raw data.
@@ -148,19 +159,13 @@ fitness = function(population, raw){
     }
 
     ## Penalize for complexity
-    ns_params = sapply( # vector of integers summing number of breakpoints
-                    lapply(
-                        strsplit(population$Chromosome,""),
-                        as.integer),
-                    sum) + 1 # number of constants is breaks + 1
-
-    # AIC is k-ln(sum sq losses)
-    #   losses is vector of sum(square losses) so
-    AIC = 2*log(n)*ns_params + n*log(losses/n)
-    # Note that this AIC can be alternatively parameterized
+    ns_params = count_params(population$Chromosome)
+    AIC = calc_AIC(n, ns_params, losses)
 
     # calculate sum of log(\hat{n_j}) for MDL calculation
     # sum_n_hat = for each chromosome, length of 0s between 1s plus 1
+    # TODO: refactor into a separate subroutine
+    #   MDL = calc_MDL(n, ns_params, losses)
     sum_n_hat = sapply(
                     lapply( # for each chromosome, get \hat{n_j}'s
                         strsplit( # get strs of 0's (whose lengths = n_j-1)
