@@ -1,0 +1,39 @@
+---
+title: "STA243 Hw2 - Eric Kalosa-Kenyon"
+output:
+  html_document:
+    toc: yes
+---
+
+This assignment contains solutions to the genetic programming and simulated
+annealing problems. Here both algorithms are implemented in R and used to solve
+a piecewise constant regression problem and a small traveling salesman problem
+respectively.
+
+# Genetic algorithm
+
+## Setup
+```{r, message=F, warning=F}
+### Pseudocode overview
+# Generate observations used for regression
+# Parameterize algorithm
+# Initialize random population
+# Until convergence
+#   Calculate fitness in current generation
+#   Mate individuals proportional to fitness
+# Plot result
+
+##### BEGIN: Code
+rm(list=ls())
+
+### Imports
+library("ggplot2")
+library("dplyr")
+
+### Parameterize script
+K = 100  # Number of chromosomes in each generation
+Gmax = 30  # Maximum number of generations
+Pcross = 0.1 # Crossover rate
+Pmutate = 0.05 # Mutation rate
+which_penalty = "AIC" # "AIC" or "MDL"
+```
