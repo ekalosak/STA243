@@ -80,7 +80,51 @@ loss_fxn = function(segment_observns){
     )
 }
 
-fitness = function(population, raw, complexity="AIC"){
+regression_loss = function(reg, raw){
+    # Sum of square error betweeen regression and raw
+    # len(reg) == len(raw)
+    return(sum((reg-raw)^2))
+}
+
+regress_chromosome = function(chrom, raw){
+    # return c(fhat(x))
+    # chrom is a string of "0001110101.."
+    # raw is a c(num), len(chrom) == len(raw) - 1
+
+    # Initialize working objects
+    segment_observations = c(raw[1])
+    regression = c()
+
+    for(i in 1:nchar(chrom)){ # for each gene in the chromosome
+        g = as.integer(substr(chrom, i, i)) # extract the gene from the string
+
+        if(g){ # if the gene indicates a breakpoint
+            # calculate the regression for that segment
+
+            regression = c(regression,
+                           rep(mean(segment_observations),
+                               length(segment_observations)
+                               )
+                           )
+            segment_observations = c(raw[i+1]) # reset to next segment
+
+        }else{ # if the gene does not indicate a breakpoint
+            # extend the segment
+            segment_observations = c(segment_observations, raw[i+1])
+        }
+    }
+
+    # calculate final segment regression
+    regression = c(regression,
+                   rep(mean(segment_observations),
+                       length(segment_observations)
+                       )
+                   )
+
+    return(regression)
+}
+
+fitness = function(population, raw){
     # Calculate fitness for each individual in the population relative to the
     #   raw data.
     #   Complexity is either "AIC" or "MDL". Raw is the raw data to fit.
@@ -89,7 +133,6 @@ fitness = function(population, raw, complexity="AIC"){
 
     # Check that input is ok
     stopifnot(nchar(population$Chromosomes[1]) + 1 == length(raw))
-    stopifnot(complexity == "AIC" || complexity == "MDL")
 
     # Initialize parameters
     losses = c()
@@ -98,6 +141,7 @@ fitness = function(population, raw, complexity="AIC"){
 
     for(k in 1:K){ # for each individual in the population
         x = population$Chromosome[k] # the individual's chromosome
+
         segment_observations = c(raw[1])
         loss = 0 # initialize base loss to 0
 
@@ -118,8 +162,13 @@ fitness = function(population, raw, complexity="AIC"){
         # Calculate loss for final segment
         loss = loss + loss_fxn(segment_observations)
 
+        regr = regress_chromosome(x, raw)
+        loss2 = regression_loss(regr, loss)
+        browser() # CHECK that loss == loss2, then delete preceeding paragraph
+
         losses = c(losses, loss) # record that individual's loss
     }
+
 
     ## Penalize for complexity
     ns_params = sapply( # vector of integers summing number of breakpoints
@@ -128,34 +177,48 @@ fitness = function(population, raw, complexity="AIC"){
                         as.integer),
                     sum) + 1 # number of constants is breaks + 1
 
-    if(complexity=="AIC"){
-        # AIC is k-ln(sum sq losses)
-        #   losses is vector of sum(square losses) so
-        AIC = 2*log(n)*ns_params + n*log(losses/n)
-        # Note that this AIC can be alternatively parameterized
-        fitnesses = -AIC + max(AIC) + 0.001 # low AIC is high fitness
+    # AIC is k-ln(sum sq losses)
+    #   losses is vector of sum(square losses) so
+    AIC = 2*log(n)*ns_params + n*log(losses/n)
+    # Note that this AIC can be alternatively parameterized
 
-    }else if(complexity=="MDL"){
-        # calculate sum of log(\hat{n_j})
-        # sum_n_hat = for each chromosome, length of 0s between 1s plus 1
-        sum_n_hat = sapply(
-                        lapply( # for each chromosome, get \hat{n_j}'s
-                            strsplit( # get strs of 0's (whose lengths = n_j-1)
-                                population$Chromosome,
-                                "1"
-                            ),
-                            nchar),
-                        (function (x) sum(log(x+1))) # sum(log(\hat{n_j}))
-                    )
-        MDL = ns_params*log(n) +
-            1/2*sum_n_hat +
-            n/2*log(losses/n)
+    # calculate sum of log(\hat{n_j})
+    # sum_n_hat = for each chromosome, length of 0s between 1s plus 1
+    sum_n_hat = sapply(
+                    lapply( # for each chromosome, get \hat{n_j}'s
+                        strsplit( # get strs of 0's (whose lengths = n_j-1)
+                            population$Chromosome,
+                            "1"
+                        ),
+                        nchar),
+                    (function (x) sum(log(x+1))) # sum(log(\hat{n_j}))
+                )
+    MDL = ns_params*log(n) +
+        1/2*sum_n_hat +
+        n/2*log(losses/n)
 
-        fitnesses = -MDL + max(MDL) + 0.001 # low MDL is high fitness
+    return(list(AIC, MDL))
+}
+
+plot_chromosome = function(chrom, raw_df){
+    # return a ggplot object with piecewise constants plotted on the scatter
+
+    chrs = unlist(strsplit(chrom,"")) # split string into c(characters)
+    ints = as.integer(chrs)
+
+    n = dim(raw_df)[1] # number of datapoints
+    fhat = c() # regressed variable
+    for(i in 1:n){
     }
 
-    fitnesses = fitnesses/max(fitnesses) # normalize to (0,1)
-    return(fitnesses)
+    browser()
+
+    plt = ggplot(raw_df, aes(x=x, y=y)) +
+        geom_point() +
+        xlab("Index") + ylab("Value") +
+        ggtitle(paste("Chromosome", chrom))
+
+    return(plt)
 }
 
 ## Generate observations
@@ -175,8 +238,8 @@ plt1 = ggplot(raw_df, aes(x=x, y=y)) +
     ggtitle("Raw observations")
 
 ## Parameterize algoritm and initialize major objects
-pop_col_names = c("Chromosome", "Fitness", "Generation")
-pop = data.frame(matrix(ncol = 3, nrow = 0))   # Holds all individuals
+pop_col_names = c("Chromosome", "AIC", "MDL", "Generation")
+pop = data.frame(matrix(ncol = 4, nrow = 0))   # Holds all individuals
 colnames(pop) = pop_col_names
 K = 20  # Number of chromosomes in each generation
 G = 70  # Maximum number of generations
@@ -185,30 +248,65 @@ G = 70  # Maximum number of generations
 g = 1
 for(i in 1:K){
     x = random_chromosome(num_genes=N-1) # returns string of 1s and 0s
-    individual = c(x, NA, g)
+    individual = c(x, NA, NA, g)
     pop[dim(pop)[1]+1,] = individual
 }
 
 ## Calculate fitness and mate each generation
 for(g in 2:G){
     parent_generation = pop[pop$Generation == g-1,]
-    parent_aic_mdl = fitness(parent_generation, raw, which_penalty)
+    parent_aic_mdl = fitness(parent_generation, raw)
     # Put parent fitness into main dataframe
-    pop[rownames(parent_generation),]$Fitness = parent_aic_mdl
-    parent_generation$Fitness = parent_aic_mdl # inelegant but effective
+    pop[rownames(parent_generation),]$AIC = parent_aic_mdl[[1]]
+    pop[rownames(parent_generation),]$MDL = parent_aic_mdl[[2]]
+
+    # Update current working object
+    parent_generation$AIC = parent_aic_mdl[[1]]
+    parent_generation$MDL = parent_aic_mdl[[2]]
+
+    # invert AIC and MDL for sampling
+    parent_generation$nAIC =
+        -(parent_generation$AIC - min(parent_generation$AIC))
+    parent_generation$nAIC =
+        parent_generation$nAIC - min(parent_generation$nAIC) + 0.001
+    parent_generation$nMDL =
+        -(parent_generation$MDL - min(parent_generation$MDL))
+    parent_generation$nMDL =
+        parent_generation$nMDL - min(parent_generation$nMDL) + 0.001
 
     for(k in 1:K){
-        parents = sample_n(parent_generation,
-                         2,
-                         replace=FALSE,
-                         weight=Fitness)
+        # Sample parents according to AIC or MDL
+        if(which_penalty == "AIC"){
+            parents = sample_n(parent_generation,
+                             2,
+                             replace=TRUE, # do not require sexual reproduction
+                             weight=nAIC)
+        } else if(which_penalty == "MDL"){
+            parents = sample_n(parent_generation,
+                             2,
+                             replace=TRUE, # require sexual reproduction
+                             weight=nMDL)
+        }
+
         parent_chromosomes = parents$Chromosome
         child_chromosome = mate_chromosomes(parent_chromosomes)
-        child = c(child_chromosome, NA, g)
+        child = c(child_chromosome, NA, NA, g)
         pop[dim(pop)[1]+1,] = child
     }
 }
+
+# Calculate final AIC/MDL
+last_gen = pop[pop$Generation == G,]
+aic_mdl = fitness(last_gen, raw)
+# Put last fitness into main dataframe
+pop[rownames(last_gen),]$AIC = aic_mdl[[1]]
+pop[rownames(last_gen),]$MDL = aic_mdl[[2]]
+
+## Plotting results
 #TODO: plot max_fitness as a function of generation
+# REVIEW
+plot_chromosome(truth, raw_df)
+browser()
 
 ## Recover and plot max fitness chromosome
 max_fitness_chromosome = pop$Chromosome[pop$Fitness == max(pop$Fitness)]
