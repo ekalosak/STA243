@@ -93,6 +93,7 @@ fitness = function(population, raw, complexity="AIC"){
     # Initialize parameters
     losses = c()
     K = dim(population)[1]  # (K) is number of individuals in population
+    n = length(raw)
 
     for(k in 1:K){ # for each individual in the population
         x = population$Chromosome[k] # the individual's chromosome
@@ -119,25 +120,39 @@ fitness = function(population, raw, complexity="AIC"){
         losses = c(losses, loss) # record that individual's loss
     }
 
-    # Penalize for complexity
+    ## Penalize for complexity
+    ns_params = sapply( # vector of integers summing number of breakpoints
+                    lapply(
+                        strsplit(population$Chromosome,""),
+                        as.integer),
+                    sum) + 1 # number of constants is breaks + 1
+
     if(complexity=="AIC"){
-        ns_params = sapply( # vector of integers summing number of breakpoints
-                        lapply(
-                            strsplit(population$Chromosome,""),
-                            as.integer),
-                        sum) + 1 # number of constants is breaks + 1
-        # AIC is k-ln(L)
-        #   because L proportional to e^(-sum((x-u)^2)),
-        #   ln(L) is proportional to -sum(square error)
+        # AIC is k-ln(sum sq losses)
         #   losses is vector of sum(square losses) so
-        AIC = ns_params + losses # this can be further parameterized
+        AIC = 2*log(n)*ns_params + n*log(losses/n)
+        # Note that this AIC can be alternatively parameterized
         fitnesses = -AIC + max(AIC) + 0.001 # low AIC is high fitness
 
     }else if(complexity=="MDL"){
-        browser()
+        # calculate sum of log(\hat{n_j})
+        # sum_n_hat = for each chromosome, length of 0s between 1s plus 1
+        sum_n_hat = sapply(
+                        lapply( # for each chromosome, get \hat{n_j}'s
+                            strsplit( # get strs of 0's (whose lengths = n_j-1)
+                                population$Chromosome,
+                                "1"
+                            ),
+                            nchar),
+                        (function (x) sum(log(x+1))) # sum(log(\hat{n_j}))
+                    )
+        MDL = ns_params*log(n) +
+            1/2*sum_n_hat +
+            n/2*log(losses/n)
+
+        fitnesses = -MDL + max(MDL) + 0.001 # low MDL is high fitness
     }
 
-    browser()
     fitnesses = fitnesses/max(fitnesses) # normalize to (0,1)
     return(fitnesses)
 }
@@ -176,7 +191,7 @@ for(i in 1:K){
 which_penalty = "AIC" # or "MDL", both are calculated
 for(g in 2:G){
     parent_generation = pop[pop$Generation == g-1,]
-    parent_aic_mdl = fitness(parent_generation, raw)
+    parent_aic_mdl = fitness(parent_generation, raw, "MDL")
     # Put parent fitness into main dataframe
     pop[rownames(parent_generation),]$Fitness = parent_aic_mdl
     parent_generation$Fitness = parent_aic_mdl # inelegant but effective
