@@ -10,6 +10,195 @@ annealing problems. Here both algorithms are implemented in R and used to solve
 a piecewise constant regression problem and a small traveling salesman problem
 respectively.
 
+# Simulated annealing
+
+## Setup
+```{r, message=F, warning=F}
+### Purpose of this algorithm
+#   The goal of this program is to find an optimal solution for the traveling
+#   salesman problem. The method used is simulated annealing.
+
+### Pseudocode overview
+# Generate starting sample s
+# For k in k_0 : k_max
+#   T = temp(k_0/k_max)
+#   sample from neighborhood N(s) -> s'
+#   if H(s')<H(s):
+#       s <- s'
+#   else:
+#       if e^(-(H(s')-H(s))/T) > runif(0,1):
+#           s <- s'
+# return s
+# Plot result
+
+##### BEGIN: Code
+rm(list=ls())
+
+## Imports
+library("ggplot2")
+library("dplyr")
+
+## Define distance matrix
+raw = c(
+    0, 1, 2, 4, 9, 8, 3, 2, 1, 5, 7, 1, 2, 9, 3,
+    1, 0, 5, 3, 7, 2, 5, 1, 3, 4, 6, 6, 6, 1, 9,
+    2, 5, 0, 6, 1, 4, 7, 7, 1, 6, 5, 9, 1, 3, 4,
+    4, 3, 6, 0, 5, 2, 1, 6, 5, 4, 2, 1, 2, 1, 3,
+    9, 7, 1, 5, 0, 9, 1, 1, 2, 1, 3, 6, 8, 2, 5,
+    8, 2, 4, 2, 9, 0, 3, 5, 4, 7, 8, 3, 1, 2, 5,
+    3, 5, 7, 1, 1, 3, 0, 2, 6, 1, 7, 9, 5, 1, 4,
+    2, 1, 7, 6, 1, 5, 2, 0, 9, 4, 2, 1, 1, 7, 8,
+    1, 3, 1, 5, 2, 4, 6, 9, 0, 3, 3, 5, 1, 6, 4,
+    5, 4, 6, 4, 1, 7, 1, 4, 3, 0, 9, 1, 8, 5, 2,
+    7, 6, 5, 2, 3, 8, 7, 2, 3, 9, 0, 2, 1, 8, 1,
+    1, 6, 9, 1, 6, 3, 9, 1, 5, 1, 2, 0, 5, 4, 3,
+    2, 6, 1, 2, 8, 1, 5, 1, 1, 8, 1, 5, 0, 9, 6,
+    9, 1, 3, 1, 2, 2, 1, 7, 6, 5, 8, 4, 9, 0, 7,
+    3, 9, 4, 3, 5, 5, 4, 8, 4, 2, 1, 3, 6, 7, 0
+    )
+D = matrix(raw, sqrt(length(raw)), sqrt(length(raw)))
+
+## Parameterize script
+N = dim(D)[1] # number of cities
+M = 15 # number of times to anneal
+k_max = 1000 # steps in the annealing process
+```
+
+## Subroutines
+
+```{r}
+## Subroutine definitions
+temp = function(r){
+    ## Temperature schedule
+    stopifnot(r > 0 || r <= 1)
+
+    # when r is large, temperature should be low
+    # temp should always be positive, real
+    tt = -log(r)
+    return(tt)
+}
+
+path_len = function(s, DM=D){
+    r = 0
+    N = length(s)
+    for(i in 1:(N-1)){ # travel
+        r = r + DM[s[i],s[i+1]]
+    }
+    r = r + DM[s[N],s[1]] # go home
+    return(r)
+}
+
+nhbd = function(s, k = 2){
+    # Generate a neighborhood around path (s = e.g. [1,4,2,3] for N=4)
+    #   which consists of all sigma(s) where sigma is a k-cycle rotation with k
+    #   non-zero elements.
+
+    # Check input
+    N = length(s)
+    stopifnot(N > 2)
+    stopifnot(k >= 2) # 1 cycle neighborhood is identity
+    stopifnot(k <= N) # there are no N+1 cycles in Z/Z_{N}
+
+    # Generate k-cycle
+    K = sample(1:N, k)
+
+    # Rotate s by K
+    s2 = s
+    for(i in 1:(k-1)){
+        s2[K[i]] = s[K[i+1]]
+    }
+    s2[K[k]] = s[K[1]]
+
+    # return result
+    return(s2)
+}
+```
+
+## Unit tests
+```{r}
+## Tests
+test_all_subroutines = function(){
+    ## Unit tests
+
+    # Test neighborhood generator
+    for(i in 1:100){
+        k = floor(runif(1)*18) + 2
+        N = k + floor(runif(1)*10) + 1
+        s = sample(1:N)
+        n = nhbd(s, k)
+        stopifnot(sum(n != s) == k)
+    }
+    print("nhbd(s,k) passed!")
+
+}
+```
+
+## Simulate
+```{r}
+## Anneal
+results = data.frame(
+    Step=integer(),
+    Length=integer(),
+    M=integer(),
+    stringsAsFactors=F
+)
+
+# anneal M times to avoid local minima
+best_paths = list()
+for(m in 1:M){
+
+    s0 = sample(1:N) # Starting path sampled uniformly at random
+
+    for(k in 1:k_max){
+
+        tt = temp(k/k_max) # Get temperature from temperature schedule
+        s1 = nhbd(s0) # Sample uniformly at random from the neighborhood of s0
+        h0 = path_len(s0) # Calculate energy of object
+        h1 = path_len(s1)
+
+        if(h1 < h0){ # If the new path is shorter
+            s0 = s1 # take it
+        }else{
+            R = runif(1)
+            P = exp(-(h1-h0)/tt)
+
+            if(P>R){ # Metropolis-Hastings
+                s0 = s1
+            }
+        }
+
+        # record results
+        results[dim(results)[1]+1,] = c(k, path_len(s0), m)
+
+    }
+
+    best_paths[[length(best_paths)+1]] = s0
+}
+results = results[results$Step!=k_max,]
+best_path =
+    best_paths[[
+        results$M[
+            tail(which(
+                results$Length==min(results$Length)
+            ),1)
+        ]
+    ]]
+```
+
+## Results
+```{r}
+## Plot result
+plt_ann = ggplot(results, aes(x=Step, y=Length, color=factor(M))) +
+    geom_line() +
+    ggtitle("Annealing the Traveling Salesman problem") +
+    xlab("Step") + ylab("Path length") +
+    labs(color="Annealing\nrun")
+plt_ann
+```
+
+The minimal path length calculated here is `r min(results$Length)` using the
+path `r best_path`.
+
 # Genetic algorithm
 
 ## Setup
@@ -33,7 +222,402 @@ library("dplyr")
 ### Parameterize script
 K = 100  # Number of chromosomes in each generation
 Gmax = 30  # Maximum number of generations
-Pcross = 0.1 # Crossover rate
+Pcross = 0.9 # Crossover rate
 Pmutate = 0.05 # Mutation rate
 which_penalty = "AIC" # "AIC" or "MDL"
 ```
+
+## Subroutines
+```{r}
+### BEGIN: Subroutines
+random_chromosome = function(num_genes, nucleobases=c(0,1), max_non0=25){
+    # Generates a chromosome
+    #   lenght of chromosome is (num_genes)
+    #   each element of the chromosome is an element of (nucleobases)
+    non0 = sample(1:num_genes, max_non0)
+    x = rep(nucleobases[1], num_genes)
+    x[non0] = sample(nucleobases, max_non0, replace=TRUE)
+    x = paste(x, collapse='')
+    return(x)
+}
+
+mate_chromosomes = function(parents, xr=0.1, mr=0.1){
+    # Produce a single offspring from parent chromosomes (p1, p2) with a
+    # crossover rate (xr) and a mutation rate (mr)
+
+    p1 = parents[1]
+    p2 = parents[2]
+    stopifnot(nchar(p1) == nchar(p2))
+
+    child = ""
+    w = 1 # crossover parameter
+    for(i in 1:nchar(p1)){
+
+        # Give child parents' genes for each gene (i)
+        #   from p1 if w == 1
+        #   from p2 if w == 0
+        if(w){
+            chr = substr(p1, i, i) # get i'th character from parent 1
+        }else{
+            chr = substr(p2, i, i) # get i'th character from parent 2
+        }
+
+        # Mutate gene
+        if(runif(1)<mr){
+            chr = as.character((as.integer(chr) + 1) %% 2)
+        }
+
+        # Extend child with the i'th parental character
+        child = paste(child, chr, sep="")
+
+        # Crossover if required
+        if(runif(1)<xr){
+            w = (w + 1) %% 2
+        }
+    }
+    return(child)
+}
+
+regression_loss = function(reg, raw){
+    # Sum of square error betweeen regression and raw
+    # len(reg) == len(raw)
+    return(sum((reg-raw)^2))
+}
+
+regress_chromosome = function(chrom, raw){
+    # return c(fhat(x))
+    # chrom is a string of "0001110101.."
+    # raw is a c(num), len(chrom) == len(raw) - 1
+
+    # Initialize working objects
+    segment_observations = c(raw[1])
+    regression = c()
+
+    for(i in 1:nchar(chrom)){ # for each gene in the chromosome
+        g = as.integer(substr(chrom, i, i)) # extract the gene from the string
+
+        if(g){ # if the gene indicates a breakpoint
+            # calculate the regression for that segment
+
+            regression = c(regression,
+                           rep(mean(segment_observations),
+                               length(segment_observations)
+                               )
+                           )
+            segment_observations = c(raw[i+1]) # reset to next segment
+
+        }else{ # if the gene does not indicate a breakpoint
+            # extend the segment
+            segment_observations = c(segment_observations, raw[i+1])
+        }
+    }
+
+    # calculate final segment regression
+    regression = c(regression,
+                   rep(mean(segment_observations),
+                       length(segment_observations)
+                       )
+                   )
+
+    return(regression)
+}
+
+calc_AIC = function(n, k, loss){
+    # AIC is k-ln(sum sq losses)
+    #   n is positive integer
+    #   k is num params
+    #   loss is losses
+    #   k and loss can be c() as long as they have the same length
+    # Note that this AIC can be alternatively parameterized
+
+    r = 2*log(n)*k + n*log(loss/n)
+    return(r)
+}
+
+count_params = function(vec_of_chromosomes){
+    # given a vector of chromosomes (each is "00111010111...")
+    #   count the number of segments this represents i.e. the number of
+    #   parameters that are implicitly contained in this chromosome.
+
+    r = sapply( # vector of integers summing number of breakpoints
+            lapply(
+                strsplit(vec_of_chromosomes, ""),
+                as.integer),
+            sum) + 1 # number of constants is breaks + 1
+    return(r)
+}
+
+fitness = function(population, raw){
+    # Calculate fitness for each individual in the population relative to the
+    #   raw data.
+    #   Complexity is either "AIC" or "MDL". Raw is the raw data to fit.
+    # Return a vector of floats between 0 and 1.
+    #   The AIC and MDL are normalized to [0,1]
+
+    # Check that input is ok
+    stopifnot(nchar(population$Chromosomes[1]) + 1 == length(raw))
+
+    # Initialize parameters
+    losses = c()
+    K = dim(population)[1]  # (K) is number of individuals in population
+    n = length(raw) # (n) is the number of data observations
+
+    # Calculate losses for each individual in the generation
+    for(k in 1:K){
+        x = population$Chromosome[k] # extract a chromosome
+        regr = regress_chromosome(x, raw) # calculate the regression
+        loss = regression_loss(regr, raw) # and calculate the loss
+        losses = c(losses, loss) # record that individual's loss
+    }
+
+    ## Penalize for complexity
+    ns_params = count_params(population$Chromosome)
+    AIC = calc_AIC(n, ns_params, losses)
+
+    # calculate sum of log(\hat{n_j}) for MDL calculation
+    # sum_n_hat = for each chromosome, length of 0s between 1s plus 1
+    # TODO: refactor into a separate subroutine
+    #   MDL = calc_MDL(n, ns_params, losses)
+    sum_n_hat = sapply(
+                    lapply( # for each chromosome, get \hat{n_j}'s
+                        strsplit( # get strs of 0's (whose lengths = n_j-1)
+                            population$Chromosome,
+                            "1"
+                        ),
+                        nchar),
+                    (function (x) sum(log(x+1))) # sum(log(\hat{n_j}))
+                )
+    MDL = ns_params*log(n) +
+        1/2*sum_n_hat +
+        n/2*log(losses/n)
+
+    return(list(AIC, MDL))
+}
+
+plot_chromosome = function(chrom, raw_df, color="blue"){
+    # return a ggplot object with piecewise constants plotted on the scatter
+
+    fhat = regress_chromosome(chrom, raw_df$y)
+    fhat_df = data.frame(x=raw_df$x, y=fhat)
+
+    plt = ggplot(raw_df, aes(x=x, y=y)) +
+        geom_point() +
+        geom_line(data=fhat_df, color=color) +
+        xlab("Index") + ylab("Value")
+
+    return(plt)
+}
+
+plot_generation = function(gen, raw_df, wh_score="AIC"){
+    # return a ggplot object with piecewise constants plotted on the scatter
+    #   for each chromosome in the generation
+    # Currently, colorized lines based on AIC/MDL are unimplemented
+
+    wh_gen = gen$Generation[1]
+
+    # prepare base plot
+    plt = ggplot(raw_df, aes(x=x, y=y)) +
+        geom_point() +
+        xlab("Index") + ylab("Value") +
+        ggtitle(paste("Generation", wh_gen, wh_score))
+
+    # prepare regression data for plotting
+    fhat_df = data.frame(matrix(ncol = 5, nrow = 0))
+    colnames(fhat_df) = c("x","y","Group","AIC","MDL")
+    for(i in 1:dim(gen)[1]){
+        chrom = gen$Chromosome[i]
+        fhat = regress_chromosome(chrom, raw_df$y)
+        fhat_df_i = data.frame(x=raw_df$x, y=fhat)
+        fhat_df_i$Group = i
+        fhat_df_i$AIC = as.numeric(gen$AIC[i])
+        fhat_df_i$MDL = as.numeric(gen$MDL[i])
+        fhat_df = rbind(fhat_df, fhat_df_i)
+    }
+
+    # add geomlines for aic or mdl depending on which was passed into this fxn
+    if(wh_score=="AIC"){
+        plt = plt + geom_line(data=fhat_df, aes(color=AIC, group=Group))
+    }else if(wh_score=="MDL"){
+        plt = plt + geom_line(data=fhat_df, aes(color=MDL, group=Group))
+    }
+
+    # plot AIC or MDL in a color gradient
+    plt = plt + scale_colour_gradientn(colours=rainbow(4))
+
+    return(plt)
+}
+
+best_score_and_org = function(population, wh_score){
+    # Determine best score in the population and which organism achieved it
+    if(wh_score=="AIC"){
+        best_score = min(as.numeric(population$AIC))
+        which_organism_is_best = which(
+            as.numeric(population$AIC) == best_score)[1]
+    }else if(wh_score=="MDL"){
+        best_score = min(as.numeric(population$MDL))
+        which_organism_is_best = which(
+            as.numeric(population$MDL) == best_score)[1]
+    }
+
+    return(list(best_score, which_organism_is_best))
+}
+
+### END: Subroutines
+```
+
+## Simulate
+
+```{r}
+### BEGIN: Simulation
+
+## Generate observations
+
+# True data given in homework
+truefunction<-function(x){
+    t <- c(0.1, 0.13, 0.15, 0.23, 0.25, 0.4, 0.44, 0.65, 0.76, 0.78, 0.81)
+    h <- c(4, -5, 3, -4, 5, -4.2, 2.1, 4.3, -3.1, 2.1, -4.2)
+    temp <- 0
+    for(i in 1:11) {
+        temp <- temp + h[i]/2 * (1 + sign(x - t[i]))
+    }
+    return(temp)
+}
+ndata = 512
+xdata = (0:(ndata-1))/ndata
+ydata = truefunction(xdata)
+set.seed(0401)
+N = length(ydata)
+raw = ydata + rnorm(N)/3
+
+## Initialize major objects
+pop_col_names = c("Chromosome", "AIC", "MDL", "Generation")
+pop = data.frame(matrix(ncol = 4, nrow = 0))   # Holds all individuals
+colnames(pop) = pop_col_names
+
+## Initialize first generation
+g = 1
+for(i in 1:K){
+    x = random_chromosome(num_genes=N-1) # returns string of 1s and 0s
+    individual = c(x, NA, NA, g)
+    pop[dim(pop)[1]+1,] = individual
+}
+
+## Calculate fitness and mate each generation
+for(g in 2:Gmax){
+    parent_generation = pop[pop$Generation == g-1,]
+    parent_aic_mdl = fitness(parent_generation, raw)
+    # Put parent fitness into main dataframe
+    pop[rownames(parent_generation),]$AIC = parent_aic_mdl[[1]]
+    pop[rownames(parent_generation),]$MDL = parent_aic_mdl[[2]]
+
+    # Update current working object
+    parent_generation$AIC = parent_aic_mdl[[1]]
+    parent_generation$MDL = parent_aic_mdl[[2]]
+
+    # invert AIC and MDL for sampling
+    parent_generation$nAIC =
+        -(parent_generation$AIC - min(parent_generation$AIC))
+    parent_generation$nAIC =
+        parent_generation$nAIC - min(parent_generation$nAIC) + 0.001
+    parent_generation$nMDL =
+        -(parent_generation$MDL - min(parent_generation$MDL))
+    parent_generation$nMDL =
+        parent_generation$nMDL - min(parent_generation$nMDL) + 0.001
+
+    for(k in 1:K){
+        # Sample parents according to AIC or MDL
+        if(which_penalty == "AIC"){
+            parents = sample_n(parent_generation,
+                             2,
+                             replace=TRUE, # do not require sexual reproduction
+                             weight=nAIC)
+        } else if(which_penalty == "MDL"){
+            parents = sample_n(parent_generation,
+                             2,
+                             replace=TRUE,
+                             weight=nMDL)
+        }
+
+        parent_chromosomes = parents$Chromosome
+        child_chromosome = mate_chromosomes(
+                                parent_chromosomes,
+                                Pcross,
+                                Pmutate
+                            )
+        child = c(child_chromosome, NA, NA, g)
+        pop[dim(pop)[1]+1,] = child
+    }
+
+    # TODO: add score checking convergence criterion
+
+}
+
+# Calculate final AIC/MDL
+last_gen = pop[pop$Generation == Gmax,]
+aic_mdl = fitness(last_gen, raw)
+# Put last fitness into main dataframe
+pop[rownames(last_gen),]$AIC = aic_mdl[[1]]
+pop[rownames(last_gen),]$MDL = aic_mdl[[2]]
+
+### END: Simulation
+```
+
+## Results and discussion
+```{r}
+### BEGIN: Plotting
+
+# Plot observations
+raw_df = data.frame(y=raw, x=1:length(raw))
+plt_raw = ggplot(raw_df, aes(x=x, y=y)) +
+    geom_point() +
+    xlab("Index") + ylab("Value") +
+    ggtitle("Raw observations")
+plt_raw
+
+# Plot first and last generation colored by AIC or MDL
+fgen = pop[pop$Generation==1,]
+lgen = pop[pop$Generation==Gmax,]
+plt_fgen = plot_generation(fgen, raw_df, which_penalty)
+plt_lgen = plot_generation(lgen, raw_df, which_penalty)
+plt_fgen
+plt_lgen
+
+# Plot best AIC or MDL
+if(which_penalty=="AIC"){
+    best_score = min(as.numeric(pop$AIC))
+    which_organism_is_best = which(as.numeric(pop$AIC) == best_score)
+}else if(which_penalty=="MDL"){
+    best_score = min(as.numeric(pop$MDL))
+    which_organism_is_best = which(as.numeric(pop$MDL) == best_score)
+}
+
+best_chromosome = pop$Chromosome[which_organism_is_best]
+plt_best = plot_chromosome(best_chromosome, raw_df, color="green") +
+    ggtitle(
+        paste(
+            "Chromosome ", substr(best_chromosome, 1, 12), "... ",
+            "with ", which_penalty, "=", best_score,
+            sep=""
+        ))
+plt_best
+
+### END: Plotting
+
+##### END: Code
+```
+
+For the most part, this problem is an engineering exercise. We have studied
+little about the statistical properties of genetic methods, so there is little
+to report for semantic learning - most of my learning in this problem is
+skill-based. I got better at programming in R. I'm grateful for the
+opportunity to explore this methodology directly. The method is undeniably
+functional in this context at least, even if we don't know much about its
+statistical properties.
+
+One trick I learned was that if I observe a low-p environment, I should
+instantiate my chromosomes with low-p. This strong prior on the number of
+parameters is easy enough to replicate in the fitness function with e.g. setting
+fitness of all chromosomes having more than p parameters to 0, but this is
+simply a matter of taste. My solution to incorporating this strong prior can be
+observed in the initialization step that includes "max_non0s=20", restricting
+the number of breakpoints in each chromosome in the initial population.

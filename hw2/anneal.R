@@ -49,7 +49,7 @@ D = matrix(raw, sqrt(length(raw)), sqrt(length(raw)))
 
 ## Parameterize script
 N = dim(D)[1] # number of cities
-M = 10 # number of times to anneal
+M = 15 # number of times to anneal
 k_max = 1000 # steps in the annealing process
 
 ## Subroutine definitions
@@ -66,9 +66,10 @@ temp = function(r){
 path_len = function(s, DM=D){
     r = 0
     N = length(s)
-    for(i in 1:(N-1)){
+    for(i in 1:(N-1)){ # travel
         r = r + DM[s[i],s[i+1]]
     }
+    r = r + DM[s[N],s[1]] # go home
     return(r)
 }
 
@@ -122,6 +123,7 @@ results = data.frame(
 )
 
 # anneal M times to avoid local minima
+bps = list()
 for(m in 1:M){
 
     s0 = sample(1:N) # Starting path sampled uniformly at random
@@ -129,7 +131,7 @@ for(m in 1:M){
     for(k in 1:k_max){
 
         tt = temp(k/k_max) # Get temperature from temperature schedule
-        s1 = nhbd(s0) # Sample uniformly at random from the neighborhood of s0
+        s1 = nhbd(s0, 2) # Sample uniformly at random from the neighborhood
         h0 = path_len(s0) # Calculate energy of object
         h1 = path_len(s1)
 
@@ -153,7 +155,10 @@ for(m in 1:M){
         results[dim(results)[1]+1,] = c(k, path_len(s0), m)
 
     }
+    bps[[length(bps)+1]] = s0
 }
+results = results[results$Step!=k_max,]
+bp = bps[[results$M[tail(which(results$Length==min(results$Length)),1)]]]
 
 ## Plot result
 plt = ggplot(results, aes(x=Step, y=Length, color=factor(M))) +

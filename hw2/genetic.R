@@ -28,18 +28,20 @@ library("ggplot2")
 library("dplyr")
 
 ### Parameterize script
-K = 75  # Number of chromosomes in each generation
-Gmax = 20  # Maximum number of generations
-Pcross = 0.1 # Crossover rate
+K = 200  # Number of chromosomes in each generation
+Gmax = 75  # Maximum number of generations
+Pcross = 0.9 # Crossover rate
 Pmutate = 0.05 # Mutation rate
 which_penalty = "AIC" # "AIC" or "MDL"
 
 ### BEGIN: Subroutines
-random_chromosome = function(num_genes, nucleobases=c(0,1)){
+random_chromosome = function(num_genes, nucleobases=c(0,1), max_non0=30){
     # Generates a chromosome
     #   lenght of chromosome is (num_genes)
     #   each element of the chromosome is an element of (nucleobases)
-    x = sample(nucleobases, num_genes, replace=TRUE)
+    non0 = sample(1:num_genes, max_non0)
+    x = rep(nucleobases[1], num_genes)
+    x[non0] = sample(nucleobases, max_non0, replace=TRUE)
     x = paste(x, collapse='')
     return(x)
 }
