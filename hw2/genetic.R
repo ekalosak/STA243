@@ -41,10 +41,9 @@ mate_chromosomes = function(parents, xr=0.1, mr=0.1){
 
     p1 = parents[1]
     p2 = parents[2]
-    browser()
     stopifnot(nchar(p1) == nchar(p2))
 
-    child = paste(rep("0", nchar(p1)), collapse='') # initialize child "000..."
+    child = ""
 
     w = 1 # crossover parameter
     for(i in 1:nchar(p1)){
@@ -53,15 +52,18 @@ mate_chromosomes = function(parents, xr=0.1, mr=0.1){
         #   from p1 if w == 1
         #   from p2 if w == 0
         if(w){
-            child[i] = p1[i]
+            chr = substr(p1, i, i) # get i'th character from parent 1
         }else{
-            child[i] = p2[i]
+            chr = substr(p2, i, i) # get i'th character from parent 2
         }
 
         # Mutate gene
         if(runif(1)<mr){
-            child[i] = (child[i] + 1) %% 2
+            chr = as.character((as.integer(chr) + 1) %% 2)
         }
+
+        # Extend child with the i'th parental character
+        child = paste(child, chr, sep="")
 
         # Crossover if required
         if(runif(1)<xr){
@@ -82,7 +84,6 @@ fitness = function(population, raw, complexity="AIC"){
     # Calculate fitness for each individual in the population relative to the
     #   raw data.
     #   Complexity is either "AIC" or "MDL". Raw is the raw data to fit.
-    # TODO: Incorporate complexity loss as option of MDL, AIC
     # Return a vector of floats between 0 and 1.
     #   The AIC and MDL are normalized to [0,1]
 
@@ -162,6 +163,7 @@ fitness = function(population, raw, complexity="AIC"){
 raw = c(0,0,0,1,1,1,1,5,5,5,6,6,2,2,2,2,2,2,3,1,1,1)
 truth = "001000100101000001100"
 sd = 0.3
+which_penalty = "AIC" # or "MDL", both are calculated
 N = length(raw)
 raw = raw + rnorm(N, sd=sd)
 
@@ -188,10 +190,9 @@ for(i in 1:K){
 }
 
 ## Calculate fitness and mate each generation
-which_penalty = "AIC" # or "MDL", both are calculated
 for(g in 2:G){
     parent_generation = pop[pop$Generation == g-1,]
-    parent_aic_mdl = fitness(parent_generation, raw, "MDL")
+    parent_aic_mdl = fitness(parent_generation, raw, which_penalty)
     # Put parent fitness into main dataframe
     pop[rownames(parent_generation),]$Fitness = parent_aic_mdl
     parent_generation$Fitness = parent_aic_mdl # inelegant but effective
