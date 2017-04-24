@@ -1,0 +1,34 @@
+---
+title: "STA243 Hw3 - Eric Kalosa-Kenyon"
+output:
+  html_document:
+    toc: yes
+---
+
+This assignment enforces the concepts and methods of expectation maximization.
+
+# 1
+## 1.a
+
+As stated in the assignment handout,
+$l(\theta)=x_1\log(2+\theta)+(x_2+x_3)\log(1-\theta)+x_4\log(\theta)+c$
+so
+$\frac{\partial l(\theta)}{\partial\theta} =
+\frac{x_1}{2+\theta}-\frac{x_2+x_3}{1-\theta}+\frac{x_4}{\theta}$.
+  
+Plugging in $(x_1,x_2,x_3,x_4)=(125, 18, 19, 35)$ and solving
+$\frac{\partial l(\theta)}{\partial\theta} = 0$:
+$$(1-\theta)\theta x_1 - (2+\theta)\theta(x_2+x_3) + (2+\theta)(1-\theta)x_4 =
+0 \implies (-x_1-x_2-x_3-x_4)\theta^2+(x_1-2x_2-2x_3-x_4)+2x_4 = 0$$
+
+```{r}
+x = c(125, 18, 19, 35) # Observations
+A = -x[1]-x[2]-x[3]-x[4]
+B = x[1]-2*x[2]-2*x[3]-x[4]
+C = 2*x[4]
+t1 = (-B+sqrt(B^2-4*A*C))/(2*A)
+t2 = (-B-sqrt(B^2-4*A*C))/(2*A)
+```
+
+Solving using the quadratic formula we find roots
+$\theta\in \{`r t1`, `r t2`\}$. $0\le\theta\le 1$ so $\theta^\star=`r t2`$.
