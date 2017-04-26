@@ -2,13 +2,15 @@
 title: "STA243 Hw3"
 author:
 - Eric Kalosa-Kenyon
-- Kevin Fujii
+- Justin Wang
+date: "`r format(Sys.time(), '%d %B %Y')`"
+abstract: This assignment enforces the concepts and methods of expectation
+    maximization.
 output:
   html_document:
     toc: yes
 ---
 
-This assignment enforces the concepts and methods of expectation maximization.
 
 # 1
 ## 1.a
