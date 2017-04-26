@@ -1,5 +1,8 @@
 ---
-title: "STA243 Hw3 - Eric Kalosa-Kenyon"
+title: "STA243 Hw3"
+author:
+- Eric Kalosa-Kenyon
+- Kevin Fujii
 output:
   html_document:
     toc: yes
@@ -32,3 +35,5 @@ t2 = (-B-sqrt(B^2-4*A*C))/(2*A)
 
 Solving using the quadratic formula we find roots
 $\theta\in \{`r t1`, `r t2`\}$. $0\le\theta\le 1$ so $\theta^\star=`r t2`$.
+
+## 1.b
