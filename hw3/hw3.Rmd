@@ -170,7 +170,7 @@ $0<x<1$, $0<y<1$, and $x^2+y^2\le1$ where $q(x,y) = x^\alpha y$ follows a brief
 derivation of the normalizing constant $N$ for $f(x,y)$:
 
 $$
-\int_0^{1} \int_0^{\sqrt{1-x^2}} f(x,y) dydx =
+1 = \int_0^{1} \int_0^{\sqrt{1-x^2}} f(x,y) dydx =
 \int_0^{1} \int_0^{\sqrt{1-x^2}} \frac{1}{N}x^\alpha y dydx =
 \frac{1}{N} \int_0^{1} \frac{x^\alpha y^2}{2}
     \bigg\rvert_{y=0}^{\sqrt{1-x^2}} dx =
@@ -178,7 +178,12 @@ $$
 
 $$
 \frac{1}{N} \int_0^{1} \frac{x^\alpha (1-x^2)}{2} dx =
-\frac{1}{N} \frac{x^{\alpha+1}} TODO:finish
+\frac{1}{2N} (
+    \frac{x^{\alpha+1}}{\alpha+1} -
+    \frac{x^{\alpha+3}}{\alpha+3}
+    ) \bigg\rvert_{x=0}^{1} =
+\frac{1}{2N}(\frac{1}{\alpha+1}-\frac{1}{\alpha+3}) \implies
+N = \frac{1}{2}(\frac{1}{\alpha+1}-\frac{1}{\alpha+3})
 $$
 
 Inverse sampling won't work because $F^{-1}(u)$ doesn't map to a unique pair
@@ -188,4 +193,32 @@ potential algorithm inspired by the Gibbs Sampling algorithm is to sample from
 the marginal of either $X$ or $Y$, then condition on that sampled value to
 obtain a univariate conditional distributon e.g. $F(X\mid Y)$ and obtain the
 sample for the other from that. Whether $X$ or $Y$ is sampled first is decided
-by a $B(1/2)$ sample.
+by a $B(1/2)$ sample. This Gibbs-like algorithm follows:
+
+```
+K <- desired sample size
+rs <- rep(NA, K, double)
+i <- 1
+while length(rs != NA) < K do:
+    u ~ U(0,1)
+    w = (u>1/2)
+
+    if w then:
+        x ~ F_{X}(x)
+        y ~ F_{Y|X}(y|x)
+    else:
+        y ~ F_{Y}(y)
+        x ~ F_{X|Y}(x|y)
+
+    rs[i] = (x,y)
+    i = i + 1
+
+return(rs)
+```
+
+Samples from the marginal and conditional distributions above are performed
+using inversion sampling on their respective CDFs. Notice that, because the
+second sample is taken from the conditional, there is no rejection step required
+- samples that would be rejected are a priori rendered impossible by the
+conditional distribution. Further, note that this algorithm takes only K loops
+to complete.
