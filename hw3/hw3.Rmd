@@ -63,6 +63,8 @@ $$F(x) = u \implies \frac{1-e^{-x}}{1-e^{-2}} = u \implies
 
 ```{r}
 ### BEGIN: Code
+# R version 3.3.2
+# Platform: x86_64-apple-darwin15.6.0 (64-bit)
 
 ## Imports
 library(ggplot2) # pretty plotting
@@ -114,13 +116,13 @@ df_tru = data.frame(x_tru = plt_xs, y_tru = plt_ys)
 df_sim = data.frame(x_sim = inv_xs)
 
 plt1 = ggplot() +
-    geom_freqpoly( # Filled in density for the simulated data
+    geom_freqpoly( # Simulated distribution
                 data = df_sim,
                 aes(x = x_sim, y = ..density..),
                 binwidth = 0.05,
                 color="royalblue"
             ) +
-    geom_line(
+    geom_line( # True distribution
                 data = df_tru,
                 aes(x = x_tru, y = y_tru),
                 color="coral"
