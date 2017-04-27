@@ -160,3 +160,32 @@ M_1 = \frac{1}{N}$
 Next, we find $M_2$ such that $f(x)\le M_2g_2(x)$ for all $x>0$:
 $\frac{1}{N}\frac{e^{-x}}{1+x^2} \le
 M_2g_2(x) = M_2\frac{2}{\pi(1+x^2)}$ so
+  
+TODO: finish this derivation
+TODO: insert code for this problem
+
+# 5
+The algorithm for sampling from $f(x,y) = \frac{1}{N} q(x,y)$ for
+$0<x<1$, $0<y<1$, and $x^2+y^2\le1$ where $q(x,y) = x^\alpha y$ follows a brief
+derivation of the normalizing constant $N$ for $f(x,y)$:
+
+$$
+\int_0^{1} \int_0^{\sqrt{1-x^2}} f(x,y) dydx =
+\int_0^{1} \int_0^{\sqrt{1-x^2}} \frac{1}{N}x^\alpha y dydx =
+\frac{1}{N} \int_0^{1} \frac{x^\alpha y^2}{2}
+    \bigg\rvert_{y=0}^{\sqrt{1-x^2}} dx =
+$$
+
+$$
+\frac{1}{N} \int_0^{1} \frac{x^\alpha (1-x^2)}{2} dx =
+\frac{1}{N} \frac{x^{\alpha+1}} TODO:finish
+$$
+
+Inverse sampling won't work because $F^{-1}(u)$ doesn't map to a unique pair
+$(x,y)$. We could induce an ordering on a discretized grid using the CDF, but
+this introduces yet another tuning parameter namely the grid resolution. A
+potential algorithm inspired by the Gibbs Sampling algorithm is to sample from
+the marginal of either $X$ or $Y$, then condition on that sampled value to
+obtain a univariate conditional distributon e.g. $F(X\mid Y)$ and obtain the
+sample for the other from that. Whether $X$ or $Y$ is sampled first is decided
+by a $B(1/2)$ sample.
