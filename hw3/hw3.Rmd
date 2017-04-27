@@ -139,3 +139,20 @@ plt1
 ```
 The histogram represents the density of inverse sampled $X$'s from the
 simulation. The red line represents the true distribution for reference.
+
+
+# 4
+First we need to get our sampling distribution in order. This consists of
+finding the normalization constant $N$ as follows:
+$f(x) = \frac{1}{N}\frac{e^{-x}}{1+x^2}$ so
+$\int_0^{\infty} f(x)dx = 1 \implies
+N = \int_{0}^{\infty} q(x)dx \approx 0.6214496$.
+
+Now we need to find the envelope constants $M_i$ for $i\in\{0,1\}$.
+  
+First, we find $M_1$ such that $f(x)\le M_1g_1(x)$ for all $x>0$:
+$f(x) = \frac{1}{N}q(x) = \frac{1}{N}\frac{e^{-x}}{1+x^2} \le
+M_1g_1(x) = M_1e^{-x}$ so
+$NM_1 \ge \frac{1}{1+x^2} \implies
+M_1 = \frac{1}{N} \sup_{x>0} \frac{1}{1+x^2} \implies
+M_1 = \frac{1}{N}$
