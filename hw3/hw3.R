@@ -109,7 +109,7 @@ plt1 = ggplot() +
 ### PR 4
 
 ## Parameterize
-K = 5000
+K = 500
 NN = 0.6214496 # normalizing constant for fx(x) the pdf
 M1 = 1/NN # Resampling constant ensuring fx(x) <= M*g1(x) for all x
 M2 = pi/NN
@@ -157,8 +157,69 @@ g2 = Vectorize(function(x){
 ### END: Subroutines
 
 ## Simulate
+# Envelope sampling
+# First g1:
+# sample y from g1, u from U(0,1)
+# if u < f(y)/(M_1*g_1(y), accept
+N = 200 # resolution of the discretized x axis
+xdisc = seq(0,5,length.out=N) # discretization of the x axis
+g1i = 1 # how many loops this envelope rejection sampling takes
+i = 1 # list counter
+g1rs = rep(NA, K) # initialize empty result vector
+while(i <= K){
+    x = sample(xdisc, 1, prob=g1(xdisc)) # proposition from envelope
+    u = runif(1)
+    w = fx(x)/(M1*g1(x))
+    if(w>u){
+        # Accept sample
+        g1rs[i] = x
+        i = i + 1
+    }
+    g1i = g1i + 1
+}
+
+# Now g2
+g2i = 1 # how many loops this envelope rejection sampling takes
+i = 1 # list counter
+g2rs = rep(NA, K) # initialize empty result vector
+while(i <= K){
+    x = sample(xdisc, 1, prob=g2(xdisc)) # proposition from envelope
+    u = runif(1)
+    w = fx(x)/(M2*g2(x))
+    if(w>u){
+        # Accept sample
+        g2rs[i] = x
+        i = i + 1
+    }
+    g2i = g2i + 1
+}
 
 ## Plot
+# simulation results
+true_df = data.frame(x=xdisc,
+                     g1=g1(xdisc),
+                     g2=g2(xdisc),
+                     f=fx(xdisc)
+                     )
+true_df_m = melt(true_df, id="x")
+names(true_df_m) = c("x", "Distribution", "y")
+
+gsim_df = data.frame(g1=g1rs, g2=g2rs)
+
+plt5 = ggplot() +
+    geom_line(data=true_df_m,
+              aes(x=x, y=y, color=Distribution)) +
+    labs(title="Target distribution and envelopes",
+         x="X", y="Probability")
+
+plt6 = ggplot() + # g1 simulation results histogram
+    geom_histogram(data=gsim_df,
+                   mapping=aes(x=g1,y=..density..),
+                   binwidth=0.08
+                   ) +
+    geom_line(data=true_df_m[true_df_m$Distribution != "g2",],
+              aes(x=x, y=y, color=Distribution))
+
 # fx(x)
 pltx = seq(0,5,length.out=100)
 pltfx = fx(pltx)
@@ -190,29 +251,29 @@ df_plt4 = melt(
 plt4 = ggplot(data = df_plt4) +
     geom_line(aes(x = x, y = value, color = variable))
 
-### PR 5
-## Parameterize
-a = 2
-NN = 1/a # TODO: actually derive this
+# ### PR 5
+# ## Parameterize
+# a = 1/2
+# NN = 1/a # TODO: actually derive this
 
-## Subroutines
-fxy = Vectorize(function(x,y){
-    if(x<0){return(0)}
-    if(y<0){return(0)}
-    if(x^2+y^2>=1){return(0)}
+# ## Subroutines
+# fxy = Vectorize(function(x,y){
+#     if(x<0){return(0)}
+#     if(y<0){return(0)}
+#     if(x^2+y^2>=1){return(0)}
 
-    r = x^a*y/NN
-    return(r)
-})
+#     r = x^a*y/NN
+#     return(r)
+# })
 
-## Plot density
-ns = 100
-xys = matrix(NA,ns,ns)
-rownames(xys) = ((1:ns)/ns)
-colnames(xys) = ((1:ns)/ns)
-df_plt5 = melt(xys)
-names(df_plt5) = c("x","y","z")
-df_plt5$z = fxy(df_plt5$x, df_plt5$y)
-plt5 = ggplot(df_plt5, aes(x=x,y=y)) + # Plots the fxy
-    geom_contour(aes(z=z)) +
-    geom_raster(aes(fill=z))
+# ## Plot density
+# ns = 100
+# xys = matrix(NA,ns,ns)
+# rownames(xys) = ((1:ns)/ns)
+# colnames(xys) = ((1:ns)/ns)
+# df_plt5 = melt(xys)
+# names(df_plt5) = c("x","y","z")
+# df_plt5$z = fxy(df_plt5$x, df_plt5$y)
+# plt5 = ggplot(df_plt5, aes(x=x,y=y)) + # Plots the fxy
+#     # geom_contour(aes(z=z)) +
+#     geom_raster(aes(fill=z))

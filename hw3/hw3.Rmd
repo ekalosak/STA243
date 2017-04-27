@@ -166,6 +166,125 @@ M_2 = \sup_{x>0}\frac{\pi e^{-x}}{N} = \frac{\pi}{N}
 $
   
 TODO: insert code for this problem
+```{r}
+### BEGIN: Code
+
+## Imports
+library(reshape)
+
+## Parameterize
+K = 500
+NN = 0.6214496 # normalizing constant for fx(x) the pdf
+M1 = 1/NN # Resampling constant ensuring fx(x) <= M*g1(x) for all x
+M2 = pi/NN
+
+## BEGIN: Subroutines
+
+fx = Vectorize(function(x){
+    # pdf for problem 4
+    if(x<0){return(0)}
+    r = exp(-x) / (1+x^2) / NN
+    return(r)
+})
+
+g1 = Vectorize(function(x){
+    # First envelope density for rejection sampling
+    if(x<0){return(0)}
+    r = exp(-x)
+    return(r)
+})
+
+g2 = Vectorize(function(x){
+    # Second envelope density for rejection sampling
+    if(x<0){return(0)}
+    r = 2/(pi*(1+x^2))
+    return(r)
+})
+
+## END: Subroutines
+
+## BEGIN: Simulate
+
+# First, g1
+N = 200 # resolution of the discretized x axis
+xdisc = seq(0,5,length.out=N) # discretization of the x axis
+g1i = 1 # how many loops this envelope rejection sampling takes
+i = 1 # list counter
+g1rs = rep(NA, K) # initialize empty result vector
+while(i <= K){
+    x = sample(xdisc, 1, prob=g1(xdisc)) # proposition from envelope
+    u = runif(1)
+    w = fx(x)/(M1*g1(x))
+    if(w>u){
+        # Accept sample
+        g1rs[i] = x
+        i = i + 1
+    }
+    g1i = g1i + 1
+}
+
+# Now g2
+g2i = 1 # how many loops this envelope rejection sampling takes
+i = 1 # list counter
+g2rs = rep(NA, K) # initialize empty result vector
+while(i <= K){
+    x = sample(xdisc, 1, prob=g2(xdisc)) # proposition from envelope
+    u = runif(1)
+    w = fx(x)/(M2*g2(x))
+    if(w>u){
+        # Accept sample
+        g2rs[i] = x
+        i = i + 1
+    }
+    g2i = g2i + 1
+}
+
+## END: Simulate
+
+## Plot
+# simulation results
+true_df = data.frame(x=xdisc,
+                     g1=g1(xdisc),
+                     g2=g2(xdisc),
+                     f=fx(xdisc)
+                     )
+true_df_m = melt(true_df, id="x")
+names(true_df_m) = c("x", "Distribution", "y")
+
+plt3 = ggplot() +
+    geom_line(data=true_df_m,
+              aes(x=x, y=y, color=Distribution)) +
+    labs(title="Target distribution and envelopes",
+         x="X", y="Probability")
+plt3
+
+gsim_df = data.frame(g1=g1rs, g2=g2rs)
+plt4 = ggplot() + # g1 simulation results histogram
+    geom_histogram(data=gsim_df,
+                   mapping=aes(x=g1,y=..density..),
+                   binwidth=0.08) +
+    geom_line(data=true_df_m[true_df_m$Distribution != "g2",],
+              aes(x=x, y=y, color=Distribution)) +
+    labs(title="Envelope sampling from g1",
+         x="X", y="Frequency")
+plt4
+
+plt5 = ggplot() + # g2 simulation results histogram
+    geom_histogram(data=gsim_df,
+                   mapping=aes(x=g2,y=..density..),
+                   binwidth=0.08) +
+    geom_line(data=true_df_m[true_df_m$Distribution != "g1",],
+              aes(x=x, y=y, color=Distribution)) +
+    labs(title="Envelope sampling from g2",
+         x="X", y="Frequency")
+plt5
+
+### END: Code
+```
+The envelope sampling simulation results are similar for both $g_1(x)$ and
+$g_2(x)$ envelopes. However, using envelope $g_1(x)$ took only
+$`r g1i`$ propositions to produce $`r K`$ samples compared to the
+$`r g2i`$ propositions required when using envelope $g_2(x)$.
 
 # 5
 The algorithm for sampling from $f(x,y) = \frac{1}{N} q(x,y)$ for
