@@ -5,7 +5,7 @@ author:
 - Justin Wang
 date: "`r format(Sys.time(), '%d %B %Y')`"
 abstract: This assignment enforces the concepts and methods of expectation
-    maximization.
+    maximization and efficient sampling.
 output:
   html_document:
     toc: yes
@@ -156,3 +156,7 @@ M_1g_1(x) = M_1e^{-x}$ so
 $NM_1 \ge \frac{1}{1+x^2} \implies
 M_1 = \frac{1}{N} \sup_{x>0} \frac{1}{1+x^2} \implies
 M_1 = \frac{1}{N}$
+  
+Next, we find $M_2$ such that $f(x)\le M_2g_2(x)$ for all $x>0$:
+$\frac{1}{N}\frac{e^{-x}}{1+x^2} \le
+M_2g_2(x) = M_2\frac{2}{\pi(1+x^2)}$ so
