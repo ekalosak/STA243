@@ -116,19 +116,20 @@ df_tru = data.frame(x_tru = plt_xs, y_tru = plt_ys)
 df_sim = data.frame(x_sim = inv_xs)
 
 plt1 = ggplot() +
-    geom_freqpoly( # Simulated distribution
+    geom_histogram( # Simulated distribution
                 data = df_sim,
                 aes(x = x_sim, y = ..density..),
                 binwidth = 0.05,
-                color="royalblue"
+                color="royalblue",
+                fill="slategray3"
             ) +
     geom_line( # True distribution
                 data = df_tru,
                 aes(x = x_tru, y = y_tru),
-                color="coral"
+                color="deeppink2"
             ) +
     labs(
-                title = "True and simulated PDF",
+                title = "True PDF and inverse samples",
                 x = "X",
                 y = "Density"
             )
@@ -136,5 +137,5 @@ plt1
 
 ### END: Code
 ```
-The blue jittery line represents the density of inverse sampled $X$'s from the
+The histogram represents the density of inverse sampled $X$'s from the
 simulation. The red line represents the true distribution for reference.
