@@ -107,7 +107,15 @@ plt1 = ggplot() +
             )
 
 ### PR 4
+
+## Parameterize
+K = 5000
 NN = 0.6214496 # normalizing constant for fx(x) the pdf
+M1 = 1/NN # Resampling constant ensuring fx(x) <= M*g1(x) for all x
+M2 = pi/NN
+
+### BEGIN: Subroutines
+
 fx = Vectorize(function(x){
     # pdf for problem 4
     if(x<0){return(0)}
@@ -115,25 +123,38 @@ fx = Vectorize(function(x){
     return(r)
 })
 
-Fx = Vectorize(function(x, d=0.01){
-    if(x<0){return(0)}
-    r = 0
-    y = 0
-    for(i in 1:(x/d)){
-        # Reimann integration on fx(x) because I'm lazy like that
-        r = r + fx(y)*d
-        y = y + d
+integrate = function(ff, xs, d=0.01){
+    # Reimann integrate function (ff) from 0 to each x in (xs), delta=(d)
+    rs = rep(NA, length(xs))
+    n = 1
+    for(x in xs){
+        y = 0
+        r = 0
+        for(i in 1:(x/d)){
+            r = r + ff(y)*d
+            y = y + d
+        }
+        rs[n] = r
+        n = n + 1
     }
+    return(rs) # rs is vector of doubles same length as xs
+}
+
+g1 = Vectorize(function(x){
+    # First envelope density for rejection sampling
+    if(x<0){return(0)}
+    r = exp(-x)
     return(r)
 })
 
-M1 = 1/NN # Resampling constant ensuring fx(x) <= M*g1(x) for all x
-g1 = Vectorize(function(x){
-    return(NaN)
+g2 = Vectorize(function(x){
+    # Second envelope density for rejection sampling
+    if(x<0){return(0)}
+    r = 2/(pi*(1+x^2))
+    return(r)
 })
 
-## Parameterize
-K = 5000
+### END: Subroutines
 
 ## Simulate
 
@@ -141,10 +162,30 @@ K = 5000
 # fx(x)
 pltx = seq(0,5,length.out=100)
 pltfx = fx(pltx)
-pltFx = Fx(pltx)
+pltFx = integrate(fx, pltx, d=0.05)
 df_plt2 = melt(
                 data.frame(x = pltx, fx = pltfx, Fx = pltFx),
                 id = "x"
             )
 plt2 = ggplot(data = df_plt2) +
+    geom_line(aes(x = x, y = value, color = variable))
+
+# g1(x)
+pltg1x = g1(pltx)
+pltG1x = integrate(g1, pltx, d=0.05)
+df_plt3 = melt(
+                data.frame(x = pltx, g1 = pltg1x, G1 = pltG1x),
+                id = "x"
+            )
+plt3 = ggplot(data = df_plt3) +
+    geom_line(aes(x = x, y = value, color = variable))
+
+# g2(x)
+pltg2x = g2(pltx)
+pltG2x = integrate(g2, pltx, d=0.05)
+df_plt4 = melt(
+                data.frame(x = pltx, g2 = pltg2x, G2 = pltG2x),
+                id = "x"
+            )
+plt4 = ggplot(data = df_plt4) +
     geom_line(aes(x = x, y = value, color = variable))
