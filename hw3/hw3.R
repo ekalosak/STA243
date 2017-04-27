@@ -189,3 +189,30 @@ df_plt4 = melt(
             )
 plt4 = ggplot(data = df_plt4) +
     geom_line(aes(x = x, y = value, color = variable))
+
+### PR 5
+## Parameterize
+a = 2
+NN = 1/a # TODO: actually derive this
+
+## Subroutines
+fxy = Vectorize(function(x,y){
+    if(x<0){return(0)}
+    if(y<0){return(0)}
+    if(x^2+y^2>=1){return(0)}
+
+    r = x^a*y/NN
+    return(r)
+})
+
+## Plot density
+ns = 100
+xys = matrix(NA,ns,ns)
+rownames(xys) = ((1:ns)/ns)
+colnames(xys) = ((1:ns)/ns)
+df_plt5 = melt(xys)
+names(df_plt5) = c("x","y","z")
+df_plt5$z = fxy(df_plt5$x, df_plt5$y)
+plt5 = ggplot(df_plt5, aes(x=x,y=y)) + # Plots the fxy
+    geom_contour(aes(z=z)) +
+    geom_raster(aes(fill=z))
