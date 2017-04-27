@@ -39,3 +39,100 @@ Solving using the quadratic formula we find roots
 $\theta\in \{`r t1`, `r t2`\}$. $0\le\theta\le 1$ so $\theta^\star=`r t2`$.
 
 ## 1.b
+
+# 3
+$f(x)\propto e^{-x} \implies f(x) = \frac{1}{N}e^{-x}$ where
+$N = (\int_{0}^{2}e^{-x}dx)^{-1} = \frac{1}{1-e^{-2}}$.
+$$F(x) = \frac{1}{N}\int_{0}^{x}e^{-y}dy =
+\frac{1-e^{-x}}{1-e^{-2}}1_{x\in[0,2]} $$
+
+To sample from $F(x)$, we follow the algorithm outlined below:
+```
+### BEGIN: Pseudocode
+
+u <- U(0,1) # Sample from a uniform distribution on the unit interval
+find x such that F(x) == u
+    invert F(x)
+    target x = F^{-1}(u)
+
+### END: Pseudocode
+```
+Inverting $F(x)$, we see
+$$F(x) = u \implies \frac{1-e^{-x}}{1-e^{-2}} = u \implies
+(1-e^{-2})u = 1-e^{-x} \implies x = -\log(1-u(1-e^{-2})) $$
+
+```{r}
+### BEGIN: Code
+
+## Imports
+library(ggplot2) # pretty plotting
+
+## Parameterize script
+K = 5000 # Number of samples
+NN = (1 - exp(-2)) # Normalizing constant
+
+## Suboutines
+fx = function(x){
+    # pdf for random variable X
+    if(x<0){return(0)}
+    if(x>2){return(0)}
+
+    r = exp(-x) / NN
+    return(r)
+}
+
+Fx = function(x){
+    # cdf for random variable X
+    if(x<0){return(0)}
+    if(x>2){return(0)}
+
+    r = (1 - exp(-x)) / NN
+    return(r)
+}
+
+Fu = function(u){
+    # Inverse cdf for the random variable X
+    if(u<0){return(NaN)}
+    if(u>1){return(NaN)}
+
+    r = -log(1 - u*(1-exp(-2)))
+    return(r)
+}
+
+## Simulate
+Fuv = Vectorize(Fu) # Make Fu take vector arguments cleanly
+us = runif(K, 0, 1) # K samples from U(0,1)
+inv_xs = Fuv(us) # Inverse sampling method
+
+## Plot results
+# Simulated data with true distribution overlay
+plt_xs = seq(0, 2, length.out = 100) # xs for true fx(x) pdf
+fxv = Vectorize(fx)
+plt_ys = fxv(plt_xs) # true fx(x) = ys
+
+df_tru = data.frame(x_tru = plt_xs, y_tru = plt_ys)
+df_sim = data.frame(x_sim = inv_xs)
+
+plt1 = ggplot() +
+    geom_freqpoly( # Filled in density for the simulated data
+                data = df_sim,
+                aes(x = x_sim, y = ..density..),
+                binwidth = 0.05,
+                color="royalblue"
+            ) +
+    geom_line(
+                data = df_tru,
+                aes(x = x_tru, y = y_tru),
+                color="coral"
+            ) +
+    labs(
+                title = "True and simulated PDF",
+                x = "X",
+                y = "Density"
+            )
+plt1
+
+### END: Code
+```
+The blue jittery line represents the density of inverse sampled $X$'s from the
+simulation. The red line represents the true distribution for reference.

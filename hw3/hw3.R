@@ -33,7 +33,7 @@ t0 = 0.5
 t1 = 0.55
 
 ts = seq(0.01,0.99,length.out=100)
-plot(ts, l(ts))
+# plot(ts, l(ts))
 
 # i = 1
 # while(abs(t0-t1)>tol){
@@ -42,4 +42,67 @@ plot(ts, l(ts))
 #     print(t1)
 #     i = i + 1
 # }
+
+
+### PR 3
+
+
+## Parameterize script
+K = 5000 # Number of samples
+NN = (1 - exp(-2)) # Normalizing constant
+
+fx = function(x){
+    # pdf for random variable X
+    if(x<0){return(0)}
+    if(x>2){return(0)}
+
+    r = exp(-x) / NN
+    return(r)
+}
+
+Fx = function(x){
+    # cdf for random variable X
+    if(x<0){return(0)}
+    if(x>2){return(0)}
+
+    r = (1 - exp(-x)) / NN
+    return(r)
+}
+
+Fu = function(u){
+    # Inverse cdf for the random variable X
+    if(u<0){return(NaN)}
+    if(u>1){return(NaN)}
+
+    r = -log(1 - u*(1-exp(-2)))
+    return(r)
+}
+
+## Simulate
+Fuv = Vectorize(Fu) # Make Fu take vector arguments cleanly
+Fxv = Vectorize(Fx)
+us = runif(K, 0, 1) # K samples from U(0,1)
+inv_xs = Fuv(us) # Inverse sampling method
+
+## Plot results
+# Simulation results histogram with true distribution overlay
+plt_xs = seq(0, 2, length.out = 100) # xs for true fx(x) pdf
+fxv = Vectorize(fx)
+plt_ys = fxv(plt_xs) # true fx(x) = ys
+
+df_tru = data.frame(x_tru = plt_xs, y_tru = plt_ys)
+df_sim = data.frame(x_sim = inv_xs)
+
+plt1 = ggplot() +
+    geom_freqpoly( # Filled in density for the simulated data
+                data = df_sim,
+                aes(x = x_sim, y = ..density..),
+                binwidth = 0.05,
+                color="royalblue"
+            ) +
+    geom_line(
+                data = df_tru,
+                aes(x = x_tru, y = y_tru),
+                color="coral"
+            )
 
