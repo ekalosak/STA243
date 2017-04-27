@@ -94,7 +94,7 @@ df_tru = data.frame(x_tru = plt_xs, y_tru = plt_ys)
 df_sim = data.frame(x_sim = inv_xs)
 
 plt1 = ggplot() +
-    geom_freqpoly( # Filled in density for the simulated data
+    geom_histogram( # Filled in density for the simulated data
                 data = df_sim,
                 aes(x = x_sim, y = ..density..),
                 binwidth = 0.05,
@@ -106,3 +106,45 @@ plt1 = ggplot() +
                 color="coral"
             )
 
+### PR 4
+NN = 0.6214496 # normalizing constant for fx(x) the pdf
+fx = Vectorize(function(x){
+    # pdf for problem 4
+    if(x<0){return(0)}
+    r = exp(-x) / (1+x^2) / NN
+    return(r)
+})
+
+Fx = Vectorize(function(x, d=0.01){
+    if(x<0){return(0)}
+    r = 0
+    y = 0
+    for(i in 1:(x/d)){
+        # Reimann integration on fx(x) because I'm lazy like that
+        r = r + fx(y)*d
+        y = y + d
+    }
+    return(r)
+})
+
+M1 = 1/NN # Resampling constant ensuring fx(x) <= M*g1(x) for all x
+g1 = Vectorize(function(x){
+    return(NaN)
+})
+
+## Parameterize
+K = 5000
+
+## Simulate
+
+## Plot
+# fx(x)
+pltx = seq(0,5,length.out=100)
+pltfx = fx(pltx)
+pltFx = Fx(pltx)
+df_plt2 = melt(
+                data.frame(x = pltx, fx = pltfx, Fx = pltFx),
+                id = "x"
+            )
+plt2 = ggplot(data = df_plt2) +
+    geom_line(aes(x = x, y = value, color = variable))
