@@ -195,7 +195,7 @@ $$F(x) = u \implies \frac{1-e^{-x}}{1-e^{-2}} = u \implies
 library(ggplot2) # pretty plotting
 
 ## Parameterize script
-K = 500 # Number of samples
+K = 5000 # Number of samples
 NN = (1 - exp(-2)) # Normalizing constant
 
 ## Suboutines
@@ -298,7 +298,7 @@ TODO: insert code for this problem
 library(reshape)
 
 ## Parameterize
-K = 500
+K = 5000
 NN = 0.6214496 # normalizing constant for fx(x) the pdf
 M1 = 1/NN # Resampling constant ensuring fx(x) <= M*g1(x) for all x
 M2 = pi/NN
