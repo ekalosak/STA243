@@ -76,14 +76,15 @@ em.1 <- function(theta) {
     }
   theta
 }
-sapply(thetas,em.1)
+results = sapply(thetas,em.1)
+results
 ```
 
 ## 1.c
 
 For completeness, we used $5$ starting values for $\theta: 0, 0.25, 0.5, 0.75,
-1$. All of them yielded the same solution, $\hat{\theta} = 0.638$, which is the
-same as the MLE obtained in part (a).
+1$. All of them yielded the same solution, $\hat{\theta} = `r results[1]`$,
+which is the same as the MLE obtained in part (a).
 
 # 2
 To derive the EM algorithm, we start with the likelihood:
@@ -138,9 +139,31 @@ $$
 Solving for $\alpha$, we obtain $\alpha_{(k+1)} = \sqrt{K/n}$, where $K$ is as
 above.
 
+```{r}
+data <- c(2.3,2.5,1.1,3.1)
+labels <- c(1,0,0,1)
+n = length(data)
+stopifnot(length(data) == length(labels))
+
+K <- function(alpha.k) {
+  cd <- data[which(labels==1)]
+  id <- data[which(labels==0)]
+  sum(cd^2) + sum((alpha.k^2 + id^2)*exp(-id^2/alpha.k^2))
+}
+
+B <- 100
+alphas <- seq(0,10,by=1)
+em.2 <- function(alpha) {
+  for(i in 1:B) { alpha <- sqrt(K(alpha)/n) }
+  alpha
+}
+results = sapply(alphas,em.2)
+results
+```
+
 Running the algorithm for $100$ iterations with $10$ distinct starting points
-$\alpha^{(0)} = 1, 2, ..., 10$, we obtain $\hat{\alpha} = 0.0157576$ for each
-distinct starting point.
+$\alpha^{(0)} = 1, 2, ..., 10$, we obtain $\hat{\alpha} = `r results[1]`$ for
+each distinct starting point.
 
 # 3
 $f(x)\propto e^{-x} \implies f(x) = \frac{1}{N}e^{-x}$ where
