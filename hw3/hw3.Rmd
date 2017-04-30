@@ -65,6 +65,20 @@ $$
 \iff \theta^{(k+1)} = \frac{x_1b + x_4}{x_2 + x_3 + x_1b + x_4}
 $$
 
+```{r}
+expr <- function(theta) { ((1/4)*theta)/(1/2 + (1/4)*theta) }
+B <- 100
+x <- c(125,18,19,35)
+thetas <- seq(0,1,by=0.25)
+em.1 <- function(theta) {
+    for(i in 1:B) {
+        theta <- (x[1]*expr(theta) + x[4])/(x[2] + x[3] + x[1]*expr(theta) + x[4])
+    }
+  theta
+}
+sapply(thetas,em.1)
+```
+
 ## 1.c
 
 For completeness, we used $5$ starting values for $\theta: 0, 0.25, 0.5, 0.75,
