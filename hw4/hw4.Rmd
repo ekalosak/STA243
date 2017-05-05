@@ -3,7 +3,8 @@ title: "STA243 Hw4"
 author:
 - Eric Kalosa-Kenyon
 date: "`r format(Sys.time(), '%d %B %Y')`"
-abstract: This assignment enforces Monte Carlo methods and exhibits MCMCs.
+abstract: This assignment enforces Monte Carlo methods and exhibits MCMCs. We
+approximate integrals, perform importance sampling, etc.
 output:
   html_document:
     toc: yes
@@ -240,3 +241,6 @@ plt4
 
 ### END: Code
 ```
+
+# 2
+
