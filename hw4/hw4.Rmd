@@ -16,14 +16,14 @@ $$\int_0^1 x^2 dx$$
 We use $f(x)=x^2$ and $p(x)=1$ uniform over the $[0,1]$ interval.
 
 ```{r}
-### R version 3.3.2 (2016-10-31) "Sincere Pumpkin Patch"
-# x86_64-apple-darwin15.6.0 svn rev 71607
+### R version 3.4.0 (2017-04-21) -- "You Stupid Darkness"
+# x86_64-apple-darwin15.6.0 svn rev 72570
 
 ### BEGIN: Code
 
 ## Preamble
 rm(list=ls())
-set.seed(10)
+set.seed(100)
 
 ## Imports
 library(ggplot2)
@@ -372,5 +372,108 @@ $$I=\int_0^1\frac{1}{1+x}dx$$
 ## 3.a
 $h(x)=\frac{1}{1+x}$ and $U_i\sim U[0,1]$ for $i\in\{1,\dots,n\}$.
 
+```{r}
+### BEGIN: Code
+
+## Parameterize
+N = 1500
+us = runif(N, 0, 1)
+itru = log(2)
+xs = seq(0,1,length.out=N)
+
+## Subroutines
+h = function(x){
+    if(x<0){return(0)}
+    else if(x>1){return(0)}
+    else{
+        return(1/(1+x))
+    }
+}
+h = Vectorize(h)
+
+## Simulate
+i1 = mean(h(us))
+
+## Plot h and int(h)
+df_3.a = data.frame(x=xs, y=h(xs))
+df_3.a.2 = data.frame(x=xs, y=cumsum((1/N)*h(xs)))
+plt_3.a = ggplot() +
+    geom_line(data=df_3.a, aes(x=x, y=y), color="coral") +
+    geom_line(data=df_3.a.2, aes(x=x, y=y), color="steelblue") +
+    # geom_hline(yintercept=i1, color="green") +
+    # geom_hline(yintercept=itru, color="blue") +
+    labs(title=latex2exp("\\frac{1}{1+x}"))
+
+### END: Code
+```
+
+The pink line above is the function $h(x)=\frac{1}{1+x}$
+and the blue line is $H(x)=\int_0^x h(t)dt$.
+The MCMC estimate of the integral is $\hat{I}_{MC}=`r i1`$
+compared with the true integral $I\approx `r itru`$.
+
+## 3.b
+```{r}
+### BEGIN: Code
+
+cc = function(x){
+    if(x<0){return(0)}
+    else if(x>1){return(0)}
+    else{
+        return(1+x)
+    }
+}
+cc = Vectorize(cc)
+
+b = -cov(h(xs), cc(xs)) / var(cc(xs))
+i2 = mean(h(us)) + b*(mean(cc(us)) - 1.5)
+
+### END: Code
+```
+
+Using the control variate $c(x)=1+x$, we calculate
+$\hat{I}_{CV} = \frac{1}{N}\sum_{i=1}^N h(U_i) +
+b(\frac{1}{N}\sum_{i=1}^N c(U_i) - E(c(U)))$
+where the variance of $\hat{I}_{CV}$ is minimized at
+$b=\frac{-cov(h(X), c(X))}{var(c(X))} \approx `r b`$.
+Upon calculation, $\hat{I}_{CV}$ is realized as $`r i2`$.
+
+## 3.c
+The variance of $\hat{I}_{CV}$ is
+$$
+Var(\hat{I}_{CV}) =
+\frac{1}{N^2}Var(h(X)) - (\frac{b}{N})^2Var(c(X)) =
+Var(\hat{I}_{MC}) - \frac{1}{N^2}\frac{Cov(h(X), c(X))^2}{Var(c(X))}
+$$
+
+```{r}
+### BEGIN: Code
+
+## Parameterize
+M = 300 # number of samples for variance estimation
+
+## Simulate
+i1s = rep(NA, M)
+i2s = rep(NA, M)
+
+for(i in 1:M){
+    us = runif(N)
+    i1 = mean(h(us))
+    i2 = mean(h(us)) + b*(mean(cc(us)) - 1.5)
+    i1s[i] = i1
+    i2s[i] = i2
+}
+
+v1 = var(i1s)
+v2 = var(i2s)
+
+### END: Code
+```
+
+Running the MC and CV estimators $`r M`$ times with $`r N`$ samples,
+$Var(\hat{I}_{MC}) \approx `r v1`$ and
+$Var(\hat{I}_{CV}) \approx `r v2`$.
+
 ## 3.d
-A new estimator for $I$, $\hat{I}_{smartass}=2$ has $0$ variance and $0$ bias.
+A new estimator for $I$, $\hat{I}_{0}=\log 2$ has
+$0$ variance and $0$ bias.

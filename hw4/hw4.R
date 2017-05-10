@@ -155,3 +155,60 @@ library(ggplot2, reshape)
 
 ### PR 3
 ## a
+h = function(x){
+    if(x<0){return(0)}
+    else if(x>1){return(0)}
+    else{
+        return(1/(1+x))
+    }
+}
+h = Vectorize(h)
+N = 1500
+us = runif(N, 0, 1)
+i1 = mean(h(us))
+itru = log(2)
+
+library(ggplot2)
+library(latex2exp)
+
+xs = seq(0,1,length.out=N)
+df_3.a = data.frame(x=xs, y=h(xs))
+df_3.a.2 = data.frame(x=xs, y=cumsum((1/N)*h(xs)))
+plt_3.a = ggplot() +
+    geom_line(data=df_3.a, aes(x=x, y=y), color="coral") +
+    geom_line(data=df_3.a.2, aes(x=x, y=y), color="steelblue") +
+    # geom_hline(yintercept=i1, color="green") +
+    # geom_hline(yintercept=itru, color="blue") +
+    labs(title=latex2exp("\\frac{1}{1+x}"))
+
+## b
+
+cc = function(x){
+    if(x<0){return(0)}
+    else if(x>1){return(0)}
+    else{
+        return(1+x)
+    }
+}
+cc = Vectorize(cc)
+
+b = -cov(h(xs), cc(xs)) / var(cc(xs))
+i2 = mean(h(us)) + b*(mean(cc(us)) - 1.5)
+
+## Parameterize
+M = 300 # number of samples for variance estimation
+
+## Simulate
+i1s = rep(NA, M)
+i2s = rep(NA, M)
+
+for(i in 1:M){
+    us = runif(N)
+    i1 = mean(h(us))
+    i2 = mean(h(us)) + b*(mean(cc(us)) - 1.5)
+    i1s[i] = i1
+    i2s[i] = i2
+}
+
+v1 = var(i1)
+v2 = var(i2)
