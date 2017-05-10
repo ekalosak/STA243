@@ -7,7 +7,7 @@ rm(list=ls())
 set.seed(10)
 
 ## Imports
-library(ggplot2)
+library(ggplot2, reshape)
 
 # ## Subroutines
 # f = function(x){
@@ -101,53 +101,57 @@ library(ggplot2)
 #          )
 
 
-### PR2
-g = function(n, u, sd){
-    # pdf of importance distribution
-    return(dnorm(n, mean=u, sd=sd))
-}
-p = function(x){
-    # pdf of nominal distribution
-    if(x<1){return(0)}
-    else if(x>2){return(0)}
-    else{return(1)}
-}
-p = Vectorize(p)
-f = function(x){
-    # pdf of numerator of likelihood ration
-    r = exp(-x^2/2)/sqrt(2*pi)
-    return(r)
-}
+# ### PR2
+# g = function(n, u, sd){
+#     # pdf of importance distribution
+#     return(dnorm(n, mean=u, sd=sd))
+# }
+# p = function(x){
+#     # pdf of nominal distribution
+#     if(x<1){return(0)}
+#     else if(x>2){return(0)}
+#     else{return(1)}
+# }
+# p = Vectorize(p)
+# f = function(x){
+#     # pdf of numerator of likelihood ration
+#     r = exp(-x^2/2)/sqrt(2*pi)
+#     return(r)
+# }
 
-m = 5000 # number of samples
-k = 10000 # resolution of sample domain
-u = 1.5 # mean of importance sampling
-vs = c(0.1, 1, 10) # standard deviations
+# m = 5000 # number of samples
+# k = 10000 # resolution of sample domain
+# u = 1.5 # mean of importance sampling
+# vs = c(0.1, 1, 10) # standard deviations
 
-samples = list()
-summands = list()
-i = 1
-for(v in vs){
-    d = c(-1, 1)*(4*v) + u         # sample domain
-    domain = seq(d[1], d[2], length.out=k)
-    ps = g(domain, u=u, sd=v)
-    xs = sample(domain, m, prob=ps, replace=T) # sample from g(x)
-    samples[[i]] = xs
-    summands[[i]] = (f(xs)*p(xs))/(g(xs, u=u, sd=v))
-    i = i + 1
-}
+# samples = list()
+# summands = list()
+# i = 1
+# for(v in vs){
+#     d = c(-1, 1)*(4*v) + u         # sample domain
+#     domain = seq(d[1], d[2], length.out=k)
+#     ps = g(domain, u=u, sd=v)
+#     xs = sample(domain, m, prob=ps, replace=T) # sample from g(x)
+#     samples[[i]] = xs
+#     summands[[i]] = (f(xs)*p(xs))/(g(xs, u=u, sd=v))
+#     i = i + 1
+# }
 
-library(ggplot2, reshape)
-df_plt = data.frame(
-                    sum1 = summands[[1]],
-                    sum2 = summands[[2]],
-                    sum3 = summands[[3]]
-                )
-names(df_plt) = c(
-                  paste("v =", vs[1]),
-                  paste("v =", vs[2]),
-                  paste("v =", vs[3])
-                )
-df_plt_m = melt(df_plt)
-plt = ggplot(df_plt_m) +
-    geom_histogram(aes(x=value, color=variable), position="dodge")
+# library(ggplot2, reshape)
+# df_plt = data.frame(
+#                     sum1 = summands[[1]],
+#                     sum2 = summands[[2]],
+#                     sum3 = summands[[3]]
+#                 )
+# names(df_plt) = c(
+#                   paste("v =", vs[1]),
+#                   paste("v =", vs[2]),
+#                   paste("v =", vs[3])
+#                 )
+# df_plt_m = melt(df_plt)
+# plt = ggplot(df_plt_m) +
+#     geom_histogram(aes(x=value, color=variable), position="dodge")
+
+
+### PR 3
+## a

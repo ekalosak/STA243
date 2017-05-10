@@ -365,3 +365,12 @@ plt2
 We observe that when the importance distribution is too wide or too narrow,
 there are many abberant values in the summand for the approximation
 $\hat{I} = \frac{1}{N}\sum_{i=1}^N \frac{f(x_i)p(x_i)}{g(x_i)}$.
+
+# 3
+$$I=\int_0^1\frac{1}{1+x}dx$$
+
+## 3.a
+$h(x)=\frac{1}{1+x}$ and $U_i\sim U[0,1]$ for $i\in\{1,\dots,n\}$.
+
+## 3.d
+A new estimator for $I$, $\hat{I}_{smartass}=2$ has $0$ variance and $0$ bias.
