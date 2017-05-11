@@ -601,3 +601,20 @@ $$
 \prod\frac{r_i^{x_i}}{x_i!}
 e^{-\lambda\sum r_i} \lambda^{\sum x_i}
 $$
+
+### 5.b.iii
+
+$$
+f(\lambda\mid p, r, x) =
+\frac{b^a\lambda^{a-1}e^{-b\lambda}}{\Gamma(a)} p^{\sum(r_i)}
+(1-p)^{n-\sum(r_i)} \prod\frac{r_i^{x_i}}{x_i!}
+e^{-\lambda\sum r_i} \lambda^{\sum x_i} =
+$$
+$$
+(\frac{b^a\lambda^{a-1}e^{-b\lambda}}{\Gamma(a)}) e^{-\lambda r_i}
+(\lambda r_i)^{\sum x_i} (\prod\frac{1}{x_i!}) p^{r_i} (1-p)^{1-r_i} =
+\frac{1}{N_{\lambda,x,p}} (e^{-\lambda}\frac{p}{1-p})^{r_i} r_i^{\sum x_i} =
+$$
+$$
+Bernoulli(\frac{pe^{-\lambda}}{pe^{-\lambda + (1-p)\mathbf{1}_{x_i=0}}})
+$$
