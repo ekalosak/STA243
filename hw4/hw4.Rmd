@@ -695,23 +695,39 @@ z = z + 1
 }} # end for A for B
 
 ## Plot
+
 plt_lambda = ggplot(data=df.main) +
     geom_line(aes(x=n, y=l), color="steelblue") +
     geom_hline(aes(yintercept=ltrue), color="coral") +
-    facet_grid(a ~ b) +
+    facet_grid(a ~ b,
+            labeller=labeller(
+                a = (function (x) paste("a=", x, sep="")),
+                b = (function (x) paste("b=", x, sep=""))
+            )) +
     labs(x="Gibbs sample iteration",
          y=TeX("$\\lambda_i$"),
-         title=TeX("Gibbs sampler convergence for $\\lambda$")
+         title=TeX(paste(
+            "Gibbs sampler convergence for $\\lambda$",
+            "using prior $f(p)~\\beta(a,b)(p)$"
+            ))
         )
 
-# plt_p = ggplot(data=df) +
-#     geom_line(aes(x=i, y=p), color="steelblue") +
-#     geom_hline(aes(yintercept=ptrue), color="coral") +
-#     labs(x="Gibbs sample iteration",
-#          y=TeX("$\\p_i$"),
-#          title=TeX("Gibbs sampler convergence for $p$")
-#         )
-# 
+plt_p = ggplot(data=df.main) +
+    geom_line(aes(x=n, y=p), color="steelblue") +
+    geom_hline(aes(yintercept=ptrue), color="coral") +
+    facet_grid(a ~ b,
+            labeller=labeller(
+                a = (function (x) paste("a=", x, sep="")),
+                b = (function (x) paste("b=", x, sep=""))
+            )) +
+    labs(x="Gibbs sample iteration",
+         y=TeX("$p_i$"),
+         title=TeX(paste(
+            "Gibbs sampler convergence for $p$",
+            "using prior $f(p)~\\beta(a,b)(p)$"
+            ))
+        )
+
 # plt_xs = ggplot(melt(matrix(xs)), aes(X1, value)) +
 #     geom_point() +
 #     labs(
@@ -744,13 +760,13 @@ plt_lambda = ggplot(data=df.main) +
 
 ```{r echo=FALSE}
 plt_lambda
+plt_p
 ```
 
-```{r echo=FALSE}
-library(shiny)
-selectInput("data", "",
- c("co2", "lh"))
-```
+The Gibbs sampler stabilizes very quickly, typically within $15$ iterations,
+though this is not true in general. The choice of prior heavily biases the
+estimates, as can be concluded by the distance from the stabilized region of the
+blue chain to the red true value.
 
 It is interesting to note that $`r sum(Rs[N,] == (xs>0))`$ out of $`r n`$
 observations in $\mathbf{r}_{`r N`}$ agree with the $X$ observations generated

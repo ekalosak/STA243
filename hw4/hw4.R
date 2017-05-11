@@ -230,9 +230,9 @@ xs = rxs * rpois(n, ltrue)
 ## Instantiate main data frame
 df.main = data.frame(matrix(NA,
                             length(A)*length(B)*N, # N samples for each (a,b)
-                            (4+n) # i, p, lambda, r1, ..., rn
+                            (5+n) # i, p, lambda, r1, ..., rn
                         ))
-names(df.main) = c("n", "p", "l", "(a,b)", paste("r", 1:n, sep=""))
+names(df.main) = c("n", "p", "l", "a", "b", paste("r", 1:n, sep=""))
 
 z = 0
 for(a in A){for(b in B){
@@ -274,8 +274,9 @@ ixs = (1:N)+z*N
 df.main[ixs,][1] = 1:n  # iteration number
 df.main[ixs,][2] = ps   # estimate of p
 df.main[ixs,][3] = ls   # estimate of lambda
-df.main[ixs,][4] = paste("(", a, ",", b, ")", sep="") # prior used (a,b)
-df.main[ixs,][5:dim(df.main)[2]] = as.integer(Rs)   # hidden \mathfb{r}_j
+df.main[ixs,][4] = a    # prior a
+df.main[ixs,][5] = b    # prior b
+df.main[ixs,][6:dim(df.main)[2]] = as.integer(Rs)   # hidden \mathfb{r}_j
 z = z + 1
 
 }} # end for A for B
@@ -284,12 +285,20 @@ z = z + 1
 # df = data.frame(1:n, ps, ls, Rs)
 # names(df) = c("i", "p", "l", paste("r", 1:n, sep=""))
 
-plt_lambda = ggplot(data=df.main[df.main$"(a,b)"=="(0.5,0.5)",]) +
+plt_lambda = ggplot(data=df.main) +
     geom_line(aes(x=n, y=l), color="steelblue") +
     geom_hline(aes(yintercept=ltrue), color="coral") +
+    facet_grid(a ~ b,
+            labeller=labeller(
+                a = (function (x) paste("a=", x, sep="")),
+                b = (function (x) paste("b=", x, sep=""))
+            )) +
     labs(x="Gibbs sample iteration",
          y=TeX("$\\lambda_i$"),
-         title=TeX("Gibbs sampler convergence for $\\lambda$")
+         title=TeX(paste(
+            "Gibbs sampler convergence for $\\lambda$",
+            "using prior $f(p)~\\beta(a,b)(p)$"
+            ))
         )
 
 # plt_p = ggplot(data=df) +
