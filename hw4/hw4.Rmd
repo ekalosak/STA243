@@ -63,7 +63,7 @@ plt1 = ggplot(data=df_plt1, aes(x=x, y=y)) +
     labs(
          x="Samples",
          y="MC Estimation",
-         title=latex2exp("MC Estimation of \\int_0^1 x^2 dx")
+         title=TeX("MC Estimation of $\\int_0^1 x^2 dx$")
          )
 plt1
 
@@ -118,9 +118,9 @@ plt2 = ggplot(data=df_plt2, aes(x=x, y=y)) +
     labs(
          x="Samples",
          y="MC Estimation",
-         title=latex2exp(paste(
+         title=TeX(paste(
             "MC Estimation of",
-            "\\int_{-2}^2\\int_0^1 x^2 cos(xy) dxdy"
+            "$\\int_{-2}^2\\int_0^1 x^2 cos(xy) dxdy$"
             ))
          )
 plt2
@@ -231,9 +231,9 @@ plt4 = ggplot(data=df_plt4, aes(x=x, y=y)) +
     labs(
          x="Samples",
          y="MC Estimation",
-         title=latex2exp(paste(
+         title=TeX(paste(
             "MC Estimation of",
-            "\\int_0^{\\infty} \\frac{3}{4} x^{4} e^{-x^3/4}"
+            "$\\int_0^{\\infty} \\frac{3}{4} x^{4} e^{-x^3/4}$"
             ))
          )
 plt4
@@ -342,9 +342,9 @@ plt1 = ggplot(
             ) +
     geom_histogram(binwidth=0.5, position="dodge") +
     labs(
-         x = latex2exp("\\frac{f(x_i)p(x_i)}{g_v(x_i)}"),
+         x = TeX("$\\frac{f(x_i)p(x_i)}{g_v(x_i)}$"),
          y = "Count",
-         title = latex2exp("Summands of \\hat{I}_v")
+         title = TeX("Summands of $\\hat{I}_v$")
         )
 plt1
 
@@ -355,9 +355,9 @@ plt2 = ggplot(
             ) +
     geom_histogram(binwidth=0.5, position="dodge") +
     labs(
-         x = latex2exp("\\frac{f(x_i)p(x_i)}{g_v(x_i)}"),
+         x = TeX("$\\frac{f(x_i)p(x_i)}{g_v(x_i)}$"),
          y = "Count",
-         title = latex2exp("Summands of \\hat{I}_v when x_i>2")
+         title = TeX("Summands of $\\hat{I}_v when x_i>2$")
         )
 plt2
 ```
@@ -402,7 +402,7 @@ plt_3.a = ggplot() +
     geom_line(data=df_3.a.2, aes(x=x, y=y), color="steelblue") +
     # geom_hline(yintercept=i1, color="green") +
     # geom_hline(yintercept=itru, color="blue") +
-    labs(title=latex2exp("\\frac{1}{1+x}"))
+    labs(title=TeX("$\\frac{1}{1+x}$"))
 
 ### END: Code
 ```
@@ -538,3 +538,66 @@ each pair of treatments. Note that this scales poorly ($O(n!)$) with the number
 of treatments.
 
 # 5
+## 5.a
+We seek to sample $n=100$ times from $Poisson(\lambda r_i)$ with
+$r_i\sim Bernoulli(p)$ using $\lambda=2$ and $p=0.3$.
+
+```{r}
+### BEGIN: Code
+
+## Parameterize
+n = 100
+l = 2
+p = 0.3
+
+## Sample from prior
+r = runif(n) < p # r Bernoulli(p)
+
+## Sample from posterior
+x = r * rpois(n, l)
+
+## Plot
+df = data.frame(x=x)
+plt = ggplot(data=df, aes(x=x)) +
+    geom_histogram(bins = max(x)+1) +
+    labs(
+         x="Value",
+         y="Frequency",
+         title=TeX("$x_i | \\textbf{r}, \\lambda, p$")
+        )
+plt
+```
+
+## 5.b
+### 5.b.i
+
+$$
+f(\lambda\mid p, r, x) =
+\frac{b^a\lambda^{a-1}e^{-b\lambda}}{\Gamma(a)} p^{\sum(r_i)}
+(1-p)^{n-\sum(r_i)} \prod\frac{r_i^{x_i}}{x_i!}
+e^{-\lambda\sum r_i} \lambda^{\sum x_i} =
+$$
+$$
+\lambda^{a+\sum x_i -1} e^{-(b+\sum r_i)\lambda} \frac{1}{N_{p,r,x}} =
+\mathbf{\Gamma}_{a+\sum x_i, b+\sum r_i}(\lambda)
+$$
+
+### 5.b.ii
+
+$$
+f(\lambda\mid p, r, x) =
+\frac{b^a\lambda^{a-1}e^{-b\lambda}}{\Gamma(a)} p^{\sum(r_i)}
+(1-p)^{n-\sum(r_i)} \prod\frac{r_i^{x_i}}{x_i!}
+e^{-\lambda\sum r_i} \lambda^{\sum x_i} =
+$$
+$$
+p^{\sum r_i}(1-p)^{n-\sum r_i} \frac{1}{N_{\lambda, r, x}} =
+\mathbf{\beta}_{\sum r_i, n-\sum r_i}(p)
+$$
+where
+$$
+\frac{1}{N_{\lambda, r, x}} =
+\frac{b^a\lambda^{a-1}e^{-b\lambda}}{\Gamma(a)}
+\prod\frac{r_i^{x_i}}{x_i!}
+e^{-\lambda\sum r_i} \lambda^{\sum x_i}
+$$
