@@ -213,100 +213,92 @@ library(latex2exp)
 # v1 = var(i1)
 # v2 = var(i2)
 
-### Pr 5
+# ### Pr 5
 
-## Parameterize
-n = 100
-ltrue = 2
-ptrue = 0.3
-N = 400 # samples from the Gibbs sampler
-A = seq(1/2, 2, by=1/2)
-B = A
+# ## Parameterize
+# n = 100
+# ltrue = 2
+# ptrue = 0.3
+# N = 400 # samples from the Gibbs sampler
+# A = seq(1/2, 2, by=1/2)
+# B = A
 
-## Generate x's
-rxs = runif(n) < ptrue # r Bernoulli(p)
-xs = rxs * rpois(n, ltrue)
+# ## Generate x's
+# rxs = runif(n) < ptrue # r Bernoulli(p)
+# xs = rxs * rpois(n, ltrue)
 
-## Instantiate main data frame
-df.main = data.frame(matrix(NA,
-                            length(A)*length(B)*N, # N samples for each (a,b)
-                            (5+n) # i, p, lambda, r1, ..., rn
-                        ))
-names(df.main) = c("n", "p", "l", "a", "b", paste("r", 1:n, sep=""))
+# ## Instantiate main data frame
+# df.main = data.frame(matrix(NA,
+#                             length(A)*length(B)*N, # N samples for each (a,b)
+#                             (5+n) # i, p, lambda, r1, ..., rn
+#                         ))
+# names(df.main) = c("n", "p", "l", "a", "b", paste("r", 1:n, sep=""))
 
-z = 0
-for(a in A){for(b in B){
+# z = 0
+# for(a in A){for(b in B){
 
-## Sample from prior
-r = runif(n) < ptrue # r Bernoulli(p)
+# ## Sample from prior
+# r = runif(n) < ptrue # r Bernoulli(p)
 
-## Initialize lambda, r, p randomly
-r0 = runif(n) > rbeta(n, a, b) # uninformative prior
-l0 = ceiling(runif(1)*5) # could envelope sample from p(l) = 1/N *l^(-1/2)
-p0 = rbeta(1, a, b)
-r1 = r0
-l1 = l0
-p1 = p0
+# ## Initialize lambda, r, p randomly
+# r0 = runif(n) > rbeta(n, a, b) # uninformative prior
+# l0 = ceiling(runif(1)*5) # could envelope sample from p(l) = 1/N *l^(-1/2)
+# p0 = rbeta(1, a, b)
+# r1 = r0
+# l1 = l0
+# p1 = p0
 
-Rs = matrix(NA, N, n)
-ls = rep(NA, N)
-ps = rep(NA, N)
-Rs[1,] = r1
-ls[1] = l1
-ps[1] = p1
+# Rs = matrix(NA, N, n)
+# ls = rep(NA, N)
+# ps = rep(NA, N)
+# Rs[1,] = r1
+# ls[1] = l1
+# ps[1] = p1
 
-## Run the Gibbs sampler
+# ## Run the Gibbs sampler
 
-for(i in 2:N){
-    # Update according to conditional distributions
-    r1 = runif(n) < (p1*exp(-l0))/(p1*exp(-l0) + (1-p1)*(xs==0))
-    l1 = rgamma(1, shape = a + sum(xs), rate = b + sum(r1))
-    p1 = rbeta(1, 1 + sum(r1), n + 1 - sum(r1))
+# for(i in 2:N){
+#     # Update according to conditional distributions
+#     r1 = runif(n) < (p1*exp(-l0))/(p1*exp(-l0) + (1-p1)*(xs==0))
+#     l1 = rgamma(1, shape = a + sum(xs), rate = b + sum(r1))
+#     p1 = rbeta(1, 1 + sum(r1), n + 1 - sum(r1))
 
-    # Record those samples
-    Rs[i,] = r1
-    ls[i] = l1
-    ps[i] = p1
-}
+#     # Record those samples
+#     Rs[i,] = r1
+#     ls[i] = l1
+#     ps[i] = p1
+# }
 
-# Update the main dataframe (n, p, l, r1, ..., rn)
-ixs = (1:N)+z*N
-df.main[ixs,][1] = 1:n  # iteration number
-df.main[ixs,][2] = ps   # estimate of p
-df.main[ixs,][3] = ls   # estimate of lambda
-df.main[ixs,][4] = a    # prior a
-df.main[ixs,][5] = b    # prior b
-df.main[ixs,][6:dim(df.main)[2]] = as.integer(Rs)   # hidden \mathfb{r}_j
-z = z + 1
+# # Update the main dataframe (n, p, l, r1, ..., rn)
+# ixs = (1:N)+z*N
+# df.main[ixs,][1] = 1:n  # iteration number
+# df.main[ixs,][2] = ps   # estimate of p
+# df.main[ixs,][3] = ls   # estimate of lambda
+# df.main[ixs,][4] = a    # prior a
+# df.main[ixs,][5] = b    # prior b
+# df.main[ixs,][6:dim(df.main)[2]] = as.integer(Rs)   # hidden \mathfb{r}_j
+# z = z + 1
 
-}} # end for A for B
+# }} # end for A for B
 
 # ## Plot
 # df = data.frame(1:n, ps, ls, Rs)
 # names(df) = c("i", "p", "l", paste("r", 1:n, sep=""))
 
-plt_lambda = ggplot(data=df.main) +
-    geom_line(aes(x=n, y=l), color="steelblue") +
-    geom_hline(aes(yintercept=ltrue), color="coral") +
-    facet_grid(a ~ b,
-            labeller=labeller(
-                a = (function (x) paste("a=", x, sep="")),
-                b = (function (x) paste("b=", x, sep=""))
-            )) +
-    labs(x="Gibbs sample iteration",
-         y=TeX("$\\lambda_i$"),
-         title=TeX(paste(
-            "Gibbs sampler convergence for $\\lambda$",
-            "using prior $f(p)~\\beta(a,b)(p)$"
-            ))
-        )
-
-# plt_p = ggplot(data=df) +
-#     geom_line(aes(x=i, y=p), color="steelblue") +
-#     geom_hline(aes(yintercept=ptrue), color="coral") +
+# plt_lambda = ggplot(data=df.main) +
+#     geom_line(aes(x=n, y=l), color="steelblue") +
+#     geom_hline(aes(yintercept=ltrue), color="coral") +
+#     facet_grid(a ~ b,
+#             labeller=labeller(
+#                 a = (function (x) paste("a=", x, sep="")),
+#                 b = (function (x) paste("b=", x, sep=""))
+#             )) +
 #     labs(x="Gibbs sample iteration",
-#          y=TeX("$\\p_i$"),
-#          title=TeX("Gibbs sampler convergence for $p$")
+#          y=TeX("$\\lambda_i$"),
+#          title=TeX(paste(
+#             "Gibbs sampler convergence for $\\lambda$",
+#             "using prior $f(p)~\\beta(a,b)(p)$"
+#             ))
 #         )
 
 # plt_rs = ggplot() +
@@ -335,3 +327,63 @@ plt_lambda = ggplot(data=df.main) +
 #          y=TeX(paste("$r_{", N, ",i}$", sep="")),
 #          title=TeX(paste("True observations $\\mathbf{r_{", N,"}}$", sep=""))
 #         )
+
+### PR 6
+
+N = 1000    # Number of samples
+ran = seq(0, 10, by=0.01)   # Sampling domain
+t1 = 1.5    # Parameters for f_t1,t2(z)
+t2 = 2
+
+f = function(z){
+    # Target density f(x)
+
+    # Domain enforcement
+    if(z<=0){return(0)}
+    else if(t1<=0){return(0)}
+    else if(t2<=0){return(0)}
+
+    # Density
+    r = z^(-3/2)*exp(-t1*z-t2/z+2*sqrt(t1*t2)+log(sqrt(2*t2)))
+    return(r)
+}
+f = Vectorize(f)
+
+g = function(z){
+    # Envelope density g(z)
+    # return(dgamma(z, t1*t2, t1*t2))
+    return(dgamma(z, 1, 1))
+}
+g = Vectorize(g)
+
+r = function(x,y){
+    return(min(f(y)/f(x)*g(x)/g(y),1))
+}
+
+dists_df = data.frame(x=ran, f=f(ran), g=g(ran))
+plt_dists = ggplot(data=melt(dists_df, id="x")) +
+    geom_line(aes(x=x, y=value, color=variable))
+
+samp = rep(NA, N) # want sample of size N from x(z)
+envelope = g(ran) # proposition envelope
+z0 = sample(size=1, x=ran, prob=envelope) # initial sample from g(z)
+samp[1] = z0
+for(i in 2:N){
+    z1 = sample(size=1, x=ran, prob=envelope) # proposal from the envelope
+    a = r(z0,z1)
+    if(a == 1){
+        # accept
+        z0 = z1
+    }else{
+        # accept with pr(a)
+        if(a > runif(1)){
+            # accept
+            z0 = z1
+        } # else, reject and do nothing this time around the loop
+    }
+    samp[i] = z0
+}
+
+plt_methast = ggplot() +
+    geom_histogram(data=melt(samp), aes(x=value, y=..density..), alpha=0.8) +
+    geom_line(data=melt(dists_df, id="x"), aes(x=x, y=value, color=variable))

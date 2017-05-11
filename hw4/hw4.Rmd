@@ -3,11 +3,12 @@ title: "STA243 Hw4"
 author:
 - Eric Kalosa-Kenyon
 date: "`r format(Sys.time(), '%d %B %Y')`"
-abstract: This assignment enforces Monte Carlo methods and exhibits MCMCs. We approximate integrals, perform importance sampling, etc.
+
+abstract: This assignment enforces Monte Carlo methods and exhibits MCMCs. We approximate integrals, perform importance sampling, implement a Gibbs Sampler and the Metropolis-Hastings algorithm.
+
 output:
   html_document:
     toc: yes
-runtime: shiny
 ---
 
 
@@ -368,10 +369,16 @@ there are many abberant values in the summand for the approximation
 $\hat{I} = \frac{1}{N}\sum_{i=1}^N \frac{f(x_i)p(x_i)}{g(x_i)}$.
 
 # 3
+We seek to use Monte-Carlo methods to approximate the following integral:
+
 $$I=\int_0^1\frac{1}{1+x}dx$$
 
 ## 3.a
-$h(x)=\frac{1}{1+x}$ and $U_i\sim U[0,1]$ for $i\in\{1,\dots,n\}$.
+Using vanilla MC integration - that is, not using control variates - we simulate
+the integral using
+$h(x)=\frac{1}{1+x}$ and $U_i\sim U[0,1]$ for $i\in\{1,\dots,n\}$ in the model
+$I \approx \hat{I}_{MC} = \frac{1}{N} \sum_{i=1}^{N} h(u_i)$ where
+$u_i$ are the observations of the aforementioned random variables $U_i$.
 
 ```{r}
 ### BEGIN: Code
@@ -401,15 +408,18 @@ df_3.a.2 = data.frame(x=xs, y=cumsum((1/N)*h(xs)))
 plt_3.a = ggplot() +
     geom_line(data=df_3.a, aes(x=x, y=y), color="coral") +
     geom_line(data=df_3.a.2, aes(x=x, y=y), color="steelblue") +
-    # geom_hline(yintercept=i1, color="green") +
-    # geom_hline(yintercept=itru, color="blue") +
-    labs(title=TeX("$\\frac{1}{1+x}$"))
+    labs(title=TeX("$\\frac{1}{1+x}$ and its antiderivative"))
 
 ### END: Code
 ```
 
+```{r echo=FALSE}
+plt_3.a
+```
+
 The pink line above is the function $h(x)=\frac{1}{1+x}$
 and the blue line is $H(x)=\int_0^x h(t)dt$.
+
 The MCMC estimate of the integral is $\hat{I}_{MC}=`r i1`$
 compared with the true integral $I\approx `r itru`$.
 
@@ -568,6 +578,13 @@ plt = ggplot(data=df, aes(x=x)) +
             "$x_i | \\textbf{r}, \\lambda, p$ when $p=0.3$ and $\\lambda=2$"
             )
         )
+
+### END: Code
+```
+
+The sample generated using $p=`r ptrue`$ and $\lambda=`r ltrue`$ is depicted
+below:
+```{r echo=FALSE}
 plt
 ```
 
@@ -628,11 +645,6 @@ condition on the sample generated in part (5.a). With this in mind, we expect to
 see high density around the values $p=0.3$ and $\lambda=2$ as were used to
 generate the sample.
 
-Note that the Jeffreys prior $\mathbf{\beta}(1/2, 1/2)$ is used rather than the
-sugguested uniform prior. This is based on a more philosophically sound maximum
-entropy principle with respect to parameters regarding which we have no prior
-knowledge.
-
 ```{r}
 ### BEGIN: Code
 
@@ -648,7 +660,7 @@ df.main = data.frame(matrix(NA,
                             length(A)*length(B)*N, # N samples for each (a,b)
                             (5+n) # i, p, lambda, r1, ..., rn
                         ))
-names(df.main) = c("n", "p", "l", "a", "b", paste("r", 1:n, sep=""))
+names(df.main) = c("k", "p", "l", "a", "b", paste("r", 1:n, sep=""))
 
 z = 0
 for(a in A){for(b in B){
@@ -682,7 +694,7 @@ for(i in 2:N){
     ps[i] = p1
 }
 
-# Update the main dataframe (n, p, l, r1, ..., rn)
+# Update the main dataframe (k, p, l, a, b, r1, ..., rn)
 ixs = (1:N)+z*N
 df.main[ixs,][1] = 1:n  # iteration number
 df.main[ixs,][2] = ps   # estimate of p
@@ -697,7 +709,7 @@ z = z + 1
 ## Plot
 
 plt_lambda = ggplot(data=df.main) +
-    geom_line(aes(x=n, y=l), color="steelblue") +
+    geom_line(aes(x=k, y=l), color="steelblue") +
     geom_hline(aes(yintercept=ltrue), color="coral") +
     facet_grid(a ~ b,
             labeller=labeller(
@@ -713,7 +725,7 @@ plt_lambda = ggplot(data=df.main) +
         )
 
 plt_p = ggplot(data=df.main) +
-    geom_line(aes(x=n, y=p), color="steelblue") +
+    geom_line(aes(x=k, y=p), color="steelblue") +
     geom_hline(aes(yintercept=ptrue), color="coral") +
     facet_grid(a ~ b,
             labeller=labeller(
@@ -728,33 +740,6 @@ plt_p = ggplot(data=df.main) +
             ))
         )
 
-# plt_xs = ggplot(melt(matrix(xs)), aes(X1, value)) +
-#     geom_point() +
-#     labs(
-#          x=TeX("Index $i$"),
-#          y=TeX("$X_i$"),
-#          title=TeX("True observations $\\mathbf{X}$")
-#         )
-# 
-# plt_rn = ggplot(melt(matrix(ceiling(Rs[N,]))), aes(X1, value)) +
-#     geom_point() +
-#     labs(
-#          x=TeX("Index $i$"),
-#          y=TeX(paste("$r_{", N, ",i}$", sep="")),
-#          title=TeX(paste("True observations $\\mathbf{r_{", N,"}}$", sep=""))
-#         )
-# 
-# plt_rs = ggplot() +
-#     geom_raster(
-#                 data=melt(ceiling(Rs)),
-#                 mapping=aes(X1, X2, fill=value)
-#             ) +
-#     labs(
-#          x="Gibbs sample iteration",
-#          y=TeX("$\\mathbf{r}_{j}$"),
-#          title=TeX("Gibbs sampler convergence for $\\mathbf{r}$")
-#         )
-
 ### END: Code
 ```
 
@@ -768,6 +753,132 @@ though this is not true in general. The choice of prior heavily biases the
 estimates, as can be concluded by the distance from the stabilized region of the
 blue chain to the red true value.
 
-It is interesting to note that $`r sum(Rs[N,] == (xs>0))`$ out of $`r n`$
-observations in $\mathbf{r}_{`r N`}$ agree with the $X$ observations generated
-in the very beginning.
+# 6
+We seek to sample from the following distribution
+$f_{\theta_1,\theta_2}(z)$ using the Metropolis-Hastings algorithm.
+
+$$
+f_{\theta_1,\theta_2}(z) \propto
+z^{-3/2}e^{-\theta_1z-\frac{\theta_2}{z}+2\sqrt{\theta_1\theta_2}+
+\log\sqrt{2\theta_2}}
+$$
+
+Hence, we draw $1000$ samples by executing the following:
+```{r}
+### BEGIN: Code
+
+## Parameterize
+N = 1000    # Number of samples
+ran = seq(0, 10, by=0.01)   # Sampling domain
+t1 = 1.5    # Parameters for f_t1,t2(z)
+t2 = 2
+
+## Subroutines
+f = function(z){
+    # Target density f(x)
+
+    # Domain enforcement
+    if(z<=0){return(0)}
+    else if(t1<=0){return(0)}
+    else if(t2<=0){return(0)}
+
+    # Density
+    r = z^(-3/2)*exp(-t1*z-t2/z+2*sqrt(t1*t2)+log(sqrt(2*t2)))
+    return(r)
+}
+f = Vectorize(f)
+
+g = function(z){
+    # Envelope density g(z)
+    # return(dgamma(z, t1*t2, t1*t2))
+    return(dgamma(z, 1, 1))
+}
+g = Vectorize(g)
+
+r = function(x,y){
+    return(min(f(y)/f(x)*g(x)/g(y),1))
+}
+
+## Metropolis-Hastings algorithm
+
+samp = rep(NA, N) # want sample of size N from x(z)
+envelope = g(ran) # proposition envelope
+z0 = sample(size=1, x=ran, prob=envelope) # initial sample from g(z)
+samp[1] = z0
+
+for(i in 2:N){
+    z1 = sample(size=1, x=ran, prob=envelope) # proposal from the envelope
+    a = r(z0,z1)
+    if(a == 1){
+        # accept
+        z0 = z1
+    }else{
+        # accept with pr(a)
+        if(a > runif(1)){
+            # accept
+            z0 = z1
+        } # else, reject and do nothing this time around the loop
+    }
+    samp[i] = z0
+}
+
+## Plot
+dists_df = data.frame(x=ran, f=f(ran), g=g(ran))
+plt_dists = ggplot(data=melt(dists_df, id="x")) +
+    geom_line(aes(x=x, y=value, color=variable))
+
+plt_methast = ggplot() +
+    geom_histogram(
+        data=melt(samp),
+        aes(x=value, y=..density..),
+        alpha=0.8, bins=N/50
+    ) +
+    geom_line(
+        data=melt(dists_df, id="x"),
+        aes(x=x, y=value, color=variable)
+    ) +
+    scale_colour_discrete(
+        labels=c("f(z)", "g(z)"),
+        name="Distribution"
+    ) +
+    labs(
+        x="z", y="Frequency of z",
+        title=TeX(paste(
+            "Target $f(z)$,",
+            "envelope $g(z)$,",
+            "and Metropolis-Hastings sample",
+            sep=" "
+        ))
+    )
+```
+
+```{r echo=FALSE}
+plt_methast
+```
+
+Notice that the sample in grey follows the target distribution in red rather
+than the sampling envelope in blue even though the target and envelope have
+a small inner product.
+Furthermore, we can test the accuracy of this simulation using the following
+facts about the target distribution:
+
+$$
+E_{f}(Z) = \sqrt{\frac{\theta_2}{\theta_1}} =
+`r sqrt(t2/t1)`
+\quad \textrm{and} \quad
+E_{f}(\frac{1}{Z}) = \sqrt{\frac{\theta_1}{\theta_2}} + \frac{1}{2\theta_2} =
+`r sqrt(t1/t2)+1/(2*t2)`
+$$
+
+In the sample produced by the Metropolis-Hastings algorithm above, it is the
+case that
+
+$$
+\frac{1}{N}\sum_{i=1}^{N} z_i = `r mean(samp)`
+\quad \textrm{and} \quad
+\frac{1}{N}\sum_{i=1}^{N} \frac{1}{z_i} = `r mean(1/samp)`
+$$
+
+Notice that the test statistics and their true values are close, indicating by
+another means that the sample is indeed accurately drawn from $f(z)$, as
+desired.
