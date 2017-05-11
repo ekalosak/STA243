@@ -7,6 +7,7 @@ abstract: This assignment enforces Monte Carlo methods and exhibits MCMCs. We ap
 output:
   html_document:
     toc: yes
+runtime: shiny
 ---
 
 
@@ -547,23 +548,25 @@ $r_i\sim Bernoulli(p)$ using $\lambda=2$ and $p=0.3$.
 
 ## Parameterize
 n = 100
-l = 2
-p = 0.3
+ltrue = 2
+ptrue = 0.3
 
 ## Sample from prior
-r = runif(n) < p # r Bernoulli(p)
+r = runif(n) < ptrue # r Bernoulli(p)
 
 ## Sample from posterior
-x = r * rpois(n, l)
+xs = r * rpois(n, ltrue)
 
 ## Plot
-df = data.frame(x=x)
+df = data.frame(x=xs)
 plt = ggplot(data=df, aes(x=x)) +
-    geom_histogram(bins = max(x)+1) +
+    geom_histogram(bins = max(xs)+1) +
     labs(
          x="Value",
          y="Frequency",
-         title=TeX("$x_i | \\textbf{r}, \\lambda, p$")
+         title=TeX(
+            "$x_i | \\textbf{r}, \\lambda, p$ when $p=0.3$ and $\\lambda=2$"
+            )
         )
 plt
 ```
@@ -616,5 +619,139 @@ $$
 \frac{1}{N_{\lambda,x,p}} (e^{-\lambda}\frac{p}{1-p})^{r_i} r_i^{\sum x_i} =
 $$
 $$
-Bernoulli(\frac{pe^{-\lambda}}{pe^{-\lambda + (1-p)\mathbf{1}_{x_i=0}}})
+Bernoulli(\frac{pe^{-\lambda}}{pe^{-\lambda} + (1-p)\mathbf{1}_{x_i=0}})
 $$
+
+## 5.c
+To sample from the posterior $f(\lambda, \mathbf{r}, p \mid \mathbf{x})$ we
+condition on the sample generated in part (5.a). With this in mind, we expect to
+see high density around the values $p=0.3$ and $\lambda=2$ as were used to
+generate the sample.
+
+Note that the Jeffreys prior $\mathbf{\beta}(1/2, 1/2)$ is used rather than the
+sugguested uniform prior. This is based on a more philosophically sound maximum
+entropy principle with respect to parameters regarding which we have no prior
+knowledge.
+
+```{r}
+### BEGIN: Code
+
+## Parameterize
+N = 400 # samples from the Gibbs sampler
+A = seq(1/2, 2, by=1/2) # values to use for the prior beta(a,b)(x)
+B = A
+
+## Recall that (xs) were generated in a previous snippet
+
+## Instantiate main data frame
+df.main = data.frame(matrix(NA,
+                            length(A)*length(B)*N, # N samples for each (a,b)
+                            (5+n) # i, p, lambda, r1, ..., rn
+                        ))
+names(df.main) = c("n", "p", "l", "a", "b", paste("r", 1:n, sep=""))
+
+z = 0
+for(a in A){for(b in B){
+
+## Initialize lambda, r, p randomly
+r0 = runif(n) > rbeta(n, a, b)
+l0 = ceiling(runif(1)*max(xs))
+p0 = rbeta(1, a, b)
+r1 = r0
+l1 = l0
+p1 = p0
+
+Rs = matrix(NA, N, n)
+ls = rep(NA, N)
+ps = rep(NA, N)
+Rs[1,] = r1
+ls[1] = l1
+ps[1] = p1
+
+## Run the Gibbs sampler
+
+for(i in 2:N){
+    # Update according to conditional distributions
+    r1 = runif(n) < (p1*exp(-l0))/(p1*exp(-l0) + (1-p1)*(xs==0))
+    l1 = rgamma(1, shape = a + sum(xs), rate = b + sum(r1))
+    p1 = rbeta(1, 1 + sum(r1), n + 1 - sum(r1))
+
+    # Record those samples
+    Rs[i,] = r1
+    ls[i] = l1
+    ps[i] = p1
+}
+
+# Update the main dataframe (n, p, l, r1, ..., rn)
+ixs = (1:N)+z*N
+df.main[ixs,][1] = 1:n  # iteration number
+df.main[ixs,][2] = ps   # estimate of p
+df.main[ixs,][3] = ls   # estimate of lambda
+df.main[ixs,][4] = a    # prior a
+df.main[ixs,][5] = b    # prior b
+df.main[ixs,][6:dim(df.main)[2]] = as.integer(Rs)   # hidden \mathfb{r}_j
+z = z + 1
+
+}} # end for A for B
+
+## Plot
+plt_lambda = ggplot(data=df.main) +
+    geom_line(aes(x=n, y=l), color="steelblue") +
+    geom_hline(aes(yintercept=ltrue), color="coral") +
+    facet_grid(a ~ b) +
+    labs(x="Gibbs sample iteration",
+         y=TeX("$\\lambda_i$"),
+         title=TeX("Gibbs sampler convergence for $\\lambda$")
+        )
+
+# plt_p = ggplot(data=df) +
+#     geom_line(aes(x=i, y=p), color="steelblue") +
+#     geom_hline(aes(yintercept=ptrue), color="coral") +
+#     labs(x="Gibbs sample iteration",
+#          y=TeX("$\\p_i$"),
+#          title=TeX("Gibbs sampler convergence for $p$")
+#         )
+# 
+# plt_xs = ggplot(melt(matrix(xs)), aes(X1, value)) +
+#     geom_point() +
+#     labs(
+#          x=TeX("Index $i$"),
+#          y=TeX("$X_i$"),
+#          title=TeX("True observations $\\mathbf{X}$")
+#         )
+# 
+# plt_rn = ggplot(melt(matrix(ceiling(Rs[N,]))), aes(X1, value)) +
+#     geom_point() +
+#     labs(
+#          x=TeX("Index $i$"),
+#          y=TeX(paste("$r_{", N, ",i}$", sep="")),
+#          title=TeX(paste("True observations $\\mathbf{r_{", N,"}}$", sep=""))
+#         )
+# 
+# plt_rs = ggplot() +
+#     geom_raster(
+#                 data=melt(ceiling(Rs)),
+#                 mapping=aes(X1, X2, fill=value)
+#             ) +
+#     labs(
+#          x="Gibbs sample iteration",
+#          y=TeX("$\\mathbf{r}_{j}$"),
+#          title=TeX("Gibbs sampler convergence for $\\mathbf{r}$")
+#         )
+
+### END: Code
+```
+
+```{r echo=FALSE}
+plt_lambda
+```
+
+```{r echo=FALSE}
+library(shiny)
+selectInput("data", "",
+ c("co2", "lh"))
+```
+
+It is interesting to note that $`r sum(Rs[N,] == (xs>0))`$ out of $`r n`$
+observations in $\mathbf{r}_{`r N`}$ agree with the $X$ observations generated
+in the very beginning.
