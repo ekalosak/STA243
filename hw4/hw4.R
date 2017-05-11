@@ -153,62 +153,176 @@ library(ggplot2, reshape)
 #     geom_histogram(aes(x=value, color=variable), position="dodge")
 
 
-### PR 3
-## a
-h = function(x){
-    if(x<0){return(0)}
-    else if(x>1){return(0)}
-    else{
-        return(1/(1+x))
-    }
-}
-h = Vectorize(h)
-N = 1500
-us = runif(N, 0, 1)
-i1 = mean(h(us))
-itru = log(2)
+# ### PR 3
+# ## a
+# h = function(x){
+#     if(x<0){return(0)}
+#     else if(x>1){return(0)}
+#     else{
+#         return(1/(1+x))
+#     }
+# }
+# h = Vectorize(h)
+# N = 1500
+# us = runif(N, 0, 1)
+# i1 = mean(h(us))
+# itru = log(2)
 
 library(ggplot2)
 library(latex2exp)
 
-xs = seq(0,1,length.out=N)
-df_3.a = data.frame(x=xs, y=h(xs))
-df_3.a.2 = data.frame(x=xs, y=cumsum((1/N)*h(xs)))
-plt_3.a = ggplot() +
-    geom_line(data=df_3.a, aes(x=x, y=y), color="coral") +
-    geom_line(data=df_3.a.2, aes(x=x, y=y), color="steelblue") +
-    # geom_hline(yintercept=i1, color="green") +
-    # geom_hline(yintercept=itru, color="blue") +
-    labs(title=latex2exp("\\frac{1}{1+x}"))
+# xs = seq(0,1,length.out=N)
+# df_3.a = data.frame(x=xs, y=h(xs))
+# df_3.a.2 = data.frame(x=xs, y=cumsum((1/N)*h(xs)))
+# plt_3.a = ggplot() +
+#     geom_line(data=df_3.a, aes(x=x, y=y), color="coral") +
+#     geom_line(data=df_3.a.2, aes(x=x, y=y), color="steelblue") +
+#     # geom_hline(yintercept=i1, color="green") +
+#     # geom_hline(yintercept=itru, color="blue") +
+#     labs(title=latex2exp("\\frac{1}{1+x}"))
 
-## b
+# ## b
 
-cc = function(x){
-    if(x<0){return(0)}
-    else if(x>1){return(0)}
-    else{
-        return(1+x)
-    }
-}
-cc = Vectorize(cc)
+# cc = function(x){
+#     if(x<0){return(0)}
+#     else if(x>1){return(0)}
+#     else{
+#         return(1+x)
+#     }
+# }
+# cc = Vectorize(cc)
 
-b = -cov(h(xs), cc(xs)) / var(cc(xs))
-i2 = mean(h(us)) + b*(mean(cc(us)) - 1.5)
+# b = -cov(h(xs), cc(xs)) / var(cc(xs))
+# i2 = mean(h(us)) + b*(mean(cc(us)) - 1.5)
+
+# ## Parameterize
+# M = 300 # number of samples for variance estimation
+
+# ## Simulate
+# i1s = rep(NA, M)
+# i2s = rep(NA, M)
+
+# for(i in 1:M){
+#     us = runif(N)
+#     i1 = mean(h(us))
+#     i2 = mean(h(us)) + b*(mean(cc(us)) - 1.5)
+#     i1s[i] = i1
+#     i2s[i] = i2
+# }
+
+# v1 = var(i1)
+# v2 = var(i2)
+
+### Pr 5
 
 ## Parameterize
-M = 300 # number of samples for variance estimation
+n = 100
+ltrue = 2
+ptrue = 0.3
+N = 400 # samples from the Gibbs sampler
+A = seq(1/2, 2, by=1/2)
+B = A
 
-## Simulate
-i1s = rep(NA, M)
-i2s = rep(NA, M)
+## Generate x's
+rxs = runif(n) < ptrue # r Bernoulli(p)
+xs = rxs * rpois(n, ltrue)
 
-for(i in 1:M){
-    us = runif(N)
-    i1 = mean(h(us))
-    i2 = mean(h(us)) + b*(mean(cc(us)) - 1.5)
-    i1s[i] = i1
-    i2s[i] = i2
+## Instantiate main data frame
+df.main = data.frame(matrix(NA,
+                            length(A)*length(B)*N, # N samples for each (a,b)
+                            (4+n) # i, p, lambda, r1, ..., rn
+                        ))
+names(df.main) = c("n", "p", "l", "(a,b)", paste("r", 1:n, sep=""))
+
+z = 0
+for(a in A){for(b in B){
+
+## Sample from prior
+r = runif(n) < ptrue # r Bernoulli(p)
+
+## Initialize lambda, r, p randomly
+r0 = runif(n) > rbeta(n, a, b) # uninformative prior
+l0 = ceiling(runif(1)*5) # could envelope sample from p(l) = 1/N *l^(-1/2)
+p0 = rbeta(1, a, b)
+r1 = r0
+l1 = l0
+p1 = p0
+
+Rs = matrix(NA, N, n)
+ls = rep(NA, N)
+ps = rep(NA, N)
+Rs[1,] = r1
+ls[1] = l1
+ps[1] = p1
+
+## Run the Gibbs sampler
+
+for(i in 2:N){
+    # Update according to conditional distributions
+    r1 = runif(n) < (p1*exp(-l0))/(p1*exp(-l0) + (1-p1)*(xs==0))
+    l1 = rgamma(1, shape = a + sum(xs), rate = b + sum(r1))
+    p1 = rbeta(1, 1 + sum(r1), n + 1 - sum(r1))
+
+    # Record those samples
+    Rs[i,] = r1
+    ls[i] = l1
+    ps[i] = p1
 }
 
-v1 = var(i1)
-v2 = var(i2)
+# Update the main dataframe (n, p, l, r1, ..., rn)
+ixs = (1:N)+z*N
+df.main[ixs,][1] = 1:n  # iteration number
+df.main[ixs,][2] = ps   # estimate of p
+df.main[ixs,][3] = ls   # estimate of lambda
+df.main[ixs,][4] = paste("(", a, ",", b, ")", sep="") # prior used (a,b)
+df.main[ixs,][5:dim(df.main)[2]] = as.integer(Rs)   # hidden \mathfb{r}_j
+z = z + 1
+
+}} # end for A for B
+
+# ## Plot
+# df = data.frame(1:n, ps, ls, Rs)
+# names(df) = c("i", "p", "l", paste("r", 1:n, sep=""))
+
+plt_lambda = ggplot(data=df.main[df.main$"(a,b)"=="(0.5,0.5)",]) +
+    geom_line(aes(x=n, y=l), color="steelblue") +
+    geom_hline(aes(yintercept=ltrue), color="coral") +
+    labs(x="Gibbs sample iteration",
+         y=TeX("$\\lambda_i$"),
+         title=TeX("Gibbs sampler convergence for $\\lambda$")
+        )
+
+# plt_p = ggplot(data=df) +
+#     geom_line(aes(x=i, y=p), color="steelblue") +
+#     geom_hline(aes(yintercept=ptrue), color="coral") +
+#     labs(x="Gibbs sample iteration",
+#          y=TeX("$\\p_i$"),
+#          title=TeX("Gibbs sampler convergence for $p$")
+#         )
+
+# plt_rs = ggplot() +
+#     geom_raster(
+#                 data=melt(ceiling(Rs)),
+#                 mapping=aes(X1, X2, fill=value)
+#             ) +
+#     labs(
+#          x="Gibbs sample iteration",
+#          y=TeX("$\\mathbf{r}_{j}$"),
+#          title=TeX("Gibbs sampler convergence for $\\mathbf{r}$")
+#         )
+
+# plt_xs = ggplot(melt(matrix(xs)), aes(X1, value)) +
+#     geom_point() +
+#     labs(
+#          x=TeX("Index $i$"),
+#          y=TeX("$X_i$"),
+#          title=TeX("True observations $\\mathbf{X}$")
+#         )
+
+# plt_rn = ggplot(melt(matrix(ceiling(Rs[N,]))), aes(X1, value)) +
+#     geom_point() +
+#     labs(
+#          x=TeX("Index $i$"),
+#          y=TeX(paste("$r_{", N, ",i}$", sep="")),
+#          title=TeX(paste("True observations $\\mathbf{r_{", N,"}}$", sep=""))
+#         )
