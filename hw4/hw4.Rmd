@@ -476,4 +476,65 @@ $Var(\hat{I}_{CV}) \approx `r v2`$.
 
 ## 3.d
 A new estimator for $I$, $\hat{I}_{0}=\log 2$ has
-$0$ variance and $0$ bias.
+$0$ variance and $0$ bias. Alternatively, we could add another control variate
+e.g.
+$\hat{I}_{CV2} = \hat{I}_{CV}
++ b_2(\frac{1}{N}\sum_{i=1}^N c_2(U_i) - E(c_2(U)))$
+where $c_2(x)=1-\frac{x}{2}$.
+
+# 4
+## 4.a
+Using the model $y_{ij}=\mu + \alpha_i + e_{ij}$ where
+$e_{ij}$ are sampled iid from a double exponential distribution, our null
+hypothesis $H_0$ is that $\alpha_i=0$ for all $i\in\{1,\dots,3\}$. The
+alternative hypothesis $H_1$ is that, for at least one
+$i^\star\in\{1,\dots,3\}$, $\alpha_{i^\star}\ne 0$.
+
+To test the aforementioned null hypothesis $H_0$ using Monte Carlo methods, we
+would execute the following algorithm:
+```
+Algorithm: Monte Carlo test
+    input
+        Y11...Y1N = Y.1,
+        Y21...Y2N = Y.2,
+        Y31...Y3N = Y.3,
+            Observations for each of three treatments
+        M,
+            Number of samples for simulated emperical distribution
+        K,
+            Number of samples for each simulated statistic
+        alpha
+            Testing significance level
+    output
+        {0,1}
+            0 if fail to reject H_0
+            1 if reject H_0
+
+m.hat = mean({Y1...YN})
+b.hat = 1/2*sqrt(var(Y1...YN))
+d.h0 = doubleExponential.pdf(mean=m.hat, sd=b.hat)
+
+e.cdf = []
+for i from 1 to M do:
+    x.samp = sample(from=d.h0, n=K)
+    x.stat = mean(x.samp)
+    e.cdf.append(x.stat)
+
+for i from 1 to 3 do:
+    y.i.stat = mean(Y.i)
+    if y.i.stat not in quantiles(e.cdf, alpha/2, 1-alpha/2) then:
+        return 1
+return 0
+```
+
+More consisely, we generate a null emperical distribution using parameters
+estimated from the observed data and predicated on the $H_0$ model and reject
+the null hypothesis if any of the observed means for any of the treatments fall
+outside a reasonable simulated emperical quantile.
+
+## 4.b
+Alternatively, we could use Fischer's 2-sample permutation method applied to
+each pair of treatments. Note that this scales poorly ($O(n!)$) with the number
+of treatments.
+
+# 5
