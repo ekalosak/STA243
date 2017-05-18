@@ -13,9 +13,17 @@ output:
 
 
 # 1
+In this problem we approximate three integrals; in parts (a), (b), and (c);
+using Monte Carlo methods.
+
 ## 1.a
-$$\int_0^1 x^2 dx$$
-We use $f(x)=x^2$ and $p(x)=1$ uniform over the $[0,1]$ interval.
+$$I_a = \int_0^1 x^2 dx$$
+We use $f(x)=x^2$ and $p(x)=1$ uniform over the $[0,1]$ interval to approximate
+the integral using the formulation
+$$I_a = \int_{0}^{1} f(x) dp(x) \approx \hat{I}_a =
+\frac{1}{N} \sum_{i=0}^{N} f(X_i)
+\quad \textrm{where} \quad
+X_i \sim p(X) \quad \textrm{iid}$$
 
 ```{r}
 ### R version 3.4.0 (2017-04-21) -- "You Stupid Darkness"
@@ -484,6 +492,8 @@ v2 = var(i2s)
 Running the MC and CV estimators $`r M`$ times with $`r N`$ samples,
 $Var(\hat{I}_{MC}) \approx `r v1`$ and
 $Var(\hat{I}_{CV}) \approx `r v2`$.
+Notice that this is an improvement of $`r log(v1/v2, 10)`$ orders of magnitude
+in the variance of the estimator.
 
 ## 3.d
 A new estimator for $I$, $\hat{I}_{0}=\log 2$ has
@@ -494,6 +504,9 @@ $\hat{I}_{CV2} = \hat{I}_{CV}
 where $c_2(x)=1-\frac{x}{2}$.
 
 # 4
+In this problem, we do Monte Carlo ANOVA when errors are not normally
+distributed.
+
 ## 4.a
 Using the model $y_{ij}=\mu + \alpha_i + e_{ij}$ where
 $e_{ij}$ are sampled iid from a double exponential distribution, our null
