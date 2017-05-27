@@ -11,4 +11,58 @@ output:
     toc: yes
 ---
 
-# Problem setup
+# Introduction
+We consider four methods for fitting the smoothing parameter $\lambda$ for a
+penalized cubic regression spline. The cubic spline $\hat{f}_\lambda(x)$
+approximates $f(x)$ and is defined as the minimizer of the following functional:
+
+$$
+\hat{f}_\lambda(x) =
+\textrm{argmin}_{f\in\mathbf{F}} \frac{1}{n}\sum_{i=1}^{n}(y_i-f(x_i))^2 +
+    \int_{a}^{b} (\frac{\partial^2}{\partial x^2} f(x))^2 dx
+$$
+
+For our simulations, we consider the true 1-dimensional function $f(x)$:
+$$
+f(x) = 1.5*\Phi(\frac{x-0.35}{0.15}) - \Phi(\frac{x-0.8}{0.04})
+\quad \textrm{where} \quad
+\Phi(u) = \frac{1}{\sqrt{2\pi}} e^{-u^2/2}
+$$
+
+```{r}
+## Imports
+library(ggplot2)
+library(stats)
+
+## Subroutines
+f = function(x){
+    # prob density function defined in problem specification
+    1.5*dnorm((x-0.35)/0.15) - dnorm((x-0.8)/0.04)
+}
+
+## Parameterize
+n = 200
+is = 1:n
+xis = (is-0.5)/n
+
+## Plotting
+pdf_df = data.frame(x=xis, y=f(xis))
+plt_pdf = ggplot(data=pdf_df) +
+    geom_line(aes(x=x, y=y), color="steelblue") +
+    labs(x="X", y="Y", title="True f(x)")
+```
+
+```{r echo=FALSE}
+plt_pdf
+```
+
+# Smoothing parameter selection
+We consider four methods:
+
+## Cross validation (CV)
+
+## Generalized cross validation (GCV)
+
+## Akaike information criterion (AIC)
+
+## Emperical risk minimization (ERM)
