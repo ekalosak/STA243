@@ -1,0 +1,14 @@
+---
+title: "STA243 Hw5"
+author:
+- Eric Kalosa-Kenyon
+date: "`r format(Sys.time(), '%d %B %Y')`"
+
+abstract: In this assignment, we fit a smoothing spline using four different methods for obtaining a smoothing parameter.
+
+output:
+  html_document:
+    toc: yes
+---
+
+# Problem setup
