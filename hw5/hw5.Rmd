@@ -22,6 +22,10 @@ $$
     \int_{a}^{b} (\frac{\partial^2}{\partial x^2} f(x))^2 dx
 $$
 
+Fitting the spline is left the established subroutine `smooth.spline()` in the
+`stats` R package. Here, we are concerned only with the selection of the
+smoothing parameter $\lambda$.
+
 For our simulations, we consider the true 1-dimensional function $f(x)$:
 $$
 f(x) = 1.5*\Phi(\frac{x-0.35}{0.15}) - \Phi(\frac{x-0.8}{0.04})
@@ -57,7 +61,9 @@ plt_pdf
 ```
 
 # Smoothing parameter selection
-We consider four methods:
+As stated in the introduction, we consider four methods for selecting the
+optimal smoothing parameter $\lambda$. In this section, the four proceedures are
+described and executed.
 
 ## Cross validation (CV)
 
@@ -66,3 +72,8 @@ We consider four methods:
 ## Akaike information criterion (AIC)
 
 ## Emperical risk minimization (ERM)
+
+# Sources
+1. http://data.princeton.edu/eco572/smoothing.pdf
+2. http://people.stat.sfu.ca/~cschwarz/Consulting/Trinity/Phase2/TrinityWorkshop/Workshop-handouts/TW-04-Intro-splines.pdf
+
