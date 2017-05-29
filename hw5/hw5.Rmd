@@ -13,7 +13,22 @@ output:
 
 # Simulation setup
 
-For our simulations, we consider the true 1-dimensional function $f(x)$:
+For my simulations, I consider the goodness of fit of cubic penalized regression
+splines to the 1-dimensional function $f(x)$. A penalized regression spline is a
+function of the form
+
+$$
+\hat{f}(x) = \sum_{i=1}^p \beta_i x^i +
+    \sum_{j=1}^k \beta_{p_j}(x-t_j)^p_{+}
+$$
+
+Where $(x)_{+} = \textrm{max}(x, 0)$, $p$ is the degree of the spline, the
+$t_j$ are the locations of the knots,
+and $\beta = [\beta_0, \dots, \beta_{p_k}]$ are the regression coefficients.
+
+An example $f(x)$ follows, and I will use it repeatedly to contextualize
+theoretical statements throughout this report.
+
 $$
 f(x) = 1.5*\Phi(\frac{x-0.35}{0.15}) - \Phi(\frac{x-0.8}{0.04})
 \quad \textrm{where} \quad
@@ -48,50 +63,53 @@ plt_pdf = ggplot(data=pdf_df) +
 plt_pdf
 ```
 
+In this report, I simulate 4 different methods for selecting a smoothing
+parameter $\lambda$ under 6 different noise, design density, spatial variation,
+and variance heterogeneity states.
+
 # Introduction
-We consider four methods for fitting the smoothing parameter $\lambda$ for a
-penalized cubic regression spline. The cubic spline $\hat{f}_\lambda(x)$
-approximates $f(x)$ and is defined as the minimizer of the following functional:
+In this section, I introduce, the concepts required for the simulation in the
+context of a simple example: $y=f(x)+\epsilon$. For the rest of this section,
+the reader may assume, unless I state otherwise, that $f(x)$ is the example
+function defined in the previous section.
+
+In this report, I consider four methods for fitting the smoothing parameter
+$\lambda$ for a penalized cubic regression spline. The cubic spline
+$\hat{f}_\lambda(x)$ approximates $f(x)$ and is defined as the minimizer of the
+following functional within the class $\mathbf{F}$ of cubic regression splines:
 
 $$
 \hat{f}_\lambda(x) =
 \textrm{argmin}_{f\in\mathbf{F}} \frac{1}{n}\sum_{i=1}^{n}(y_i-f(x_i))^2 +
-    \lambda*\int_{a}^{b} (\frac{\partial^2}{\partial x^2} f(x))^2 dx
+    \lambda\sum_{j=1}^{k} \beta_{p_j}^2 =
+||y-f(x)||_2^2 + \lambda\beta^\top D\beta
 $$
 
- As is shown in chapter 2 of
-Green and Silverman (1994), the solution to minimizing the functional above is a
-natural cubic penalized regression spline, making calculating the penalty much
-simpler:
+where $D$ is the diagonal matrix with $p+1$ $0$s followed by $K$ $1$s.
+
+As David Ruppert, M. P. Wand, and R. J. Carroll (Semiparametric Regression 2003)
+show, the solution to minimizing the functional above follows the form
 
 $$
-S(f) = \frac{1}{n}\sum_{i=1}^{n}(y_i-f(x_i))^2 +
-    \lambda*\int_{a}^{b} (\frac{\partial^2}{\partial x^2} f(x))^2 dx =
-(y-f(x))^\top (y-f(x)) + \lambda*f(x)^\top K f(x)
+\hat{f}_\lambda(x) = x(x^\top x+\lambda D)^{-1} x^\top y = H_\lambda y
 $$
 
-$$
-K = \Delta W^{-1} \Delta
-\quad \textrm{where} \quad
-    \Delta_{i,i} = 1/h_i,
-    \Delta_{i,i+1} = -1/h_i - 1/h_{i+1},
-    \Delta_{i,i+2} = 1/h_{i, i+1},
-    W_{i-1,i} = W_{i,i-1} h_i/6,
-    \quad \textrm{and} \quad
-    W_{i,i} = (h_i+h_{i+1})/3
-$$
-and $h_i$ is the distance between the $i$ and $i+1$ knots. The following `R`
-code calculates the matrix $K$ from the equtions above:
+The following `R` code calculates the matrix $H_\lambda$, generates noisy
+observations from the previously defined example function $f(x)$, and fits
+penalized cubic regression splines for a number of evocative values of
+$\lambda$.
 
 ```{r}
 ## Subroutines
 noise_sd = function(j){
+    # varaible noise schedule
     return(0.02+0.04*(j-1)^2)
 }
 
 ## Parameterize
 J = 6 # for generating noisy observations
 k = 30 # number of knots
+p = 3 # cubic spline
 a = 0
 b = 1 # bounds of inegration for lambda*int_a^b f^''(x)^2 dx penalty
 knots = seq(a, b, length.out=k)
@@ -104,31 +122,23 @@ for(j in 1:J){
     noise_df[colname] = yis
 }
 
-h = knots[2] - knots[1]
-D = matrix(0, nrow = n-2, ncol = n)
-W = matrix(0, nrow = n-2, ncol = n-2)
-
-for(i in 1:(n-2)){
-    D[i,i] = 1/h
-    D[i, i+1] = -1/h-1/h
-    D[i, i+2] = 1/h
-    if(i>1){
-        W[i-1, i] = h/6
-        W[i, i-1] = h/6
-    }
-    W[i, i] = 2*h/3
-}
-K = t(D)%*%solve(W)%*%D
-
 # Perform cubic penalized spline regression for multiple lambda values
+ex_xs = noise_df$x
 ex_ys = noise_df$y3 # arbitrary noise profile for example
 lam_df = data.frame(x=xis, y=fxs, yn=ex_ys)
-lams = 10^(-2:2)
+lams = 10^seq(-10, 5, length.out=5)
+
+D = diag(c(rep(0, p+1), rep(1, k)))
+X1 = outer(ex_xs, 0:p, "^")
+X2 = outer(ex_xs, knots, ">")*outer(ex_xs, knots, "-")^p # source [2]
+X = cbind(X1, X2)
+Y = ex_ys
 
 for(lam in lams){
-    fit = solve(diag(n) + lam*K)%*%ex_ys
+    H = X %*% solve(t(X) %*% X + lam*D) %*% t(X)
+    fhys = H %*% Y
     colname = paste("lambda", lam, sep="=")
-    lam_df[colname] = fit
+    lam_df[colname] = fhys
 }
 
 plt_mx = ggplot(data=lam_df) +
@@ -144,10 +154,15 @@ plt_mx
 ```
 
 # Smoothing parameter selection
-Here, we are concerned with the selection of the smoothing parameter $\lambda$.
-As stated in the introduction, we consider four methods for selecting the
-optimal smoothing parameter $\lambda$. In this section, the four proceedures are
-described and executed.
+In this report, I am concerned with the selection of the smoothing parameter
+$\lambda$.
+As stated in the introduction, I consider four methods for selecting the
+optimal smoothing parameter $\lambda$. In this section, I describe and perform
+cross validation, generalized cross validation, improved AIC, and $L_2$ risk
+minimization on a single experimental simulation setting. In the following
+section, I perform these methods on a variety of experimental simulation
+settings, but I've simplified this section to expose the methodology to the
+reader.
 
 ## Cross validation (CV)
 
@@ -157,26 +172,30 @@ CV(\lambda) = \frac{1}{N}\sum_{i=1}^{N}
 $$
 
 ```{r}
-cv = function(l, nknot=k, K=K, xs=xis, ys){
-    # fh = smooth.spline(df=3, x=xs, y=ys, nknots=nknot, lambda=l)
-    # fhys = predict(fh, xs)[[2]]
-    n = length(xis)
-    S = solve(diag(n) + l*K)
-    fhys = S %*% ys
-    sii = diag(S)
-    r = mean(((ys-fhys)/(1-sii))^2)
+cv = function(l, k=k, X=X, Y=Y){
+    # k is num knots
+    # l is lambda, penalty
+    # X is design matrix
+    # Y is response
+
+    n = dim(X)[1]
+    D = diag(c(rep(0, dim(X)[2]-k), rep(1, k)))
+    H = X %*% solve(t(X) %*% X + l*D) %*% t(X)
+    fhys = H %*% Y
+    hii = diag(H)
+    r = mean(((Y-fhys)/(1-hii))^2)
     return(r)
 }
 
 cvv = Vectorize(cv, vectorize.args = c("l"))
-lambdas = 10^(seq(-6, 0.5, length.out=100))
-cvs = cvv(xs=xis, ys=ex_ys, l=lambdas, nknot=k, K=K)
+lambdas = 10^(seq(-10, -4, length.out=100))
+cvs = cvv(X=X, Y=Y, l=lambdas, k=k)
 
 cv_df = data.frame(x=lambdas, y=cvs)
 plt_cv = ggplot(data=cv_df) +
     geom_line(aes(x=x, y=y), color="steelblue") +
     labs(x="Smoothing Penalty", y="Cross Validation Score",
-         title="Cross validating values of lambda") +
+         title="Cross validated values of lambda") +
     scale_x_log10() +
     # geom_hline(yintercept = min(cvs), color="coral") +
     geom_vline(xintercept = lambdas[which(cvs == min(cvs))], color="coral")
@@ -186,23 +205,60 @@ plt_cv = ggplot(data=cv_df) +
 plt_cv
 ```
 
-Note that the minimizing lambda is
+Note that the minimizing smoothing penalty is
 $\lambda_{CV}=`r lambdas[which(cvs == min(cvs))]`$
 with a cross validation score of
 $CV(\lambda_{CV})=`r min(cvs)`$.
-Using the built in penalized regression spline `R` function, we find
-
-```{r}
-builtin_cv = smooth.spline(x=xis, y=ex_ys, nknots=k, cv=TRUE)
-```
-
-a cross validated $\lambda_{CV}^\star=`r builtin_cv$lambda`$. Notice that
-$\lambda_{CV}$ and $\lambda_{CV}^\star$ may be different due to different
-implementations of cross validation proceedures, the imprecise, unsettled
-terminology in the spline literature, and the stochastic noise generation
-proceedures.
 
 ## Generalized cross validation (GCV)
+
+$$
+GCV(\lambda) = \frac{\frac{1}{N}\sum_{i=1}^{N}
+    (y_i-\hat{f}_\lambda(x_i))^2}{(1-\frac{1}{N}\textrm{tr}(S_\lambda))^2}
+$$
+
+```{r}
+gcv = function(X=X, Y=Y, k=k, l){
+    # k is num knots
+    # l is lambda, penalty
+    # X is design matrix
+    # Y is response
+
+    n = dim(X)[1]
+    D = diag(c(rep(0, dim(X)[2]-k), rep(1, k)))
+    H = X %*% solve(t(X) %*% X + l*D) %*% t(X)
+
+    fhys = H %*% Y
+    tr = diag(H)
+
+    numer = mean((Y-fhys)^2)
+    denom = (1-mean(tr))^2
+    r = numer/denom
+    return(r)
+}
+
+gcvv = Vectorize(gcv, vectorize.args = c("l"))
+lambdas = 10^(seq(-9, -4, length.out=100))
+gcvs = gcvv(X=X, Y=Y, l=lambdas, k=k)
+
+gcv_df = data.frame(x=lambdas, y=gcvs)
+plt_gcv = ggplot(data=gcv_df) +
+    geom_line(aes(x=x, y=y), color="steelblue") +
+    labs(x="Smoothing Penalty", y="Generalized Cross Validation Score",
+         title="Generalized cross validated values of lambda") +
+    scale_x_log10() +
+    geom_vline(xintercept = lambdas[which(gcvs == min(gcvs))], color="coral")
+```
+
+```{r echo=F}
+plt_gcv
+```
+
+Note that the minimizing smoothing penalty is
+$\lambda_{GCV}=`r lambdas[which(gcvs == min(gcvs))]`$
+with a generalized cross validation score of
+$GCV(\lambda_{GCV})=`r min(gcvs)`$.
+
 
 ## Akaike information criterion (AIC)
 
