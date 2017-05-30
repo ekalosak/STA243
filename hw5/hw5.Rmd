@@ -445,9 +445,9 @@ and $\epsilon_i \sim\textrm{iid}N(0,1)$.
 
 ```{r}
 ## Parameterize
-J = 2 # number of noise regimes
-M = 3 # number of simulations
-L = 50 # number of lambdas to grid search
+J = 6 # number of noise regimes
+M = 20 # number of simulations
+L = 75 # number of lambdas to grid search
 p = 3 # dimension of spline
 k = 30 # number of knots
 n = 200 # number of observations
@@ -456,7 +456,7 @@ b = 1
 knots = seq(a, b, length.out=k)
 xs = ((1:n)-0.5)/n
 fxs = f(xs)
-lambdas = 10^seq(-10,-5, length.out=L)
+lambdas = 10^seq(-10,0, length.out=L)
 
 ## Setup
 # Data storage objects
@@ -566,16 +566,7 @@ $$
 
 ```{r}
 ## Parameterize
-J = 2 # number of noise regimes
-M = 3 # number of simulations
-L = 50 # number of lambdas to grid search
-p = 3 # dimension of spline
-k = 30 # number of knots
-n = 200 # number of observations
-a = 0
-b = 1
-knots = seq(a, b, length.out=k)
-lambdas = 10^seq(-9,-5, length.out=L)
+lambdas = 10^seq(-9,-4, length.out=L)
 
 ## Setup
 # Data storage objects
@@ -690,15 +681,6 @@ $$
 
 ```{r}
 ## Parameterize
-J = 2 # number of noise regimes
-M = 3 # number of simulations
-L = 50 # number of lambdas to test
-p = 3 # dimension of spline
-k = 30 # number of knots
-n = 200 # number of observations
-a = 0
-b = 1
-knots = seq(a, b, length.out=k)
 xs = ((1:n)-0.5)/n
 lambdas = 10^seq(-11,-1, length.out=L)
 
@@ -764,7 +746,7 @@ sp_raw_df = subset(sp_raw_df, ! is.na(j)) # remove the NA row
 sp_raw_df$j = as.factor(sp_raw_df$j)
 plt_sp_obv = ggplot(data=sp_raw_df) +
     geom_line(aes(x=x,y=yt), color="steelblue") +
-    geom_point(aes(x=x, y=ys, color=j)) +
+    geom_point(aes(x=x, y=ys, color=j), shape=18, size=1.5) +
     facet_wrap(~j)
 
 sp_lam_df_m = melt(sp_lam_df, id=c("J"))
@@ -787,21 +769,23 @@ plt_sp_lams
 ```
   
 Interestingly, increased spatial frequency stabilizes the estimates of the
-penalty parameter to a point.
+penalty parameter to a point. Furthermore, as the function becomes more erratic,
+the value of the penalty parameter $\lambda$ increases, forcing the spline to
+hug the data more closely.
 
 ## Performance under heterogeneous variances
+In this section I examine the effects of spatial variance dependence on the
+stability of estimates of the penalty parameter $\lambda$. I use the following
+model:
+
+$$
+y_{ij} = f(x_{i}) + \sqrt{v_j(x_i)}\epsilon_i \quad \textrm{where} \quad
+v_j(x) = (0.15(1 + 0.4(2j-7)(x-0.5)))^2
+$$
+and $f(x)$ and $\epsilon_i$ are defined as in the introduction.
 
 ```{r}
 ## Parameterize
-J = 2 # number of noise regimes
-M = 3 # number of simulations
-L = 200 # number of lambdas to test
-p = 3 # dimension of spline
-k = 30 # number of knots
-n = 200 # number of observations
-a = 0
-b = 1
-knots = seq(a, b, length.out=k)
 xs = ((1:n)-0.5)/n
 lambdas = 10^seq(-11,-1, length.out=L)
 
@@ -866,7 +850,7 @@ v_raw_df = subset(v_raw_df, ! is.na(j)) # remove the NA row
 v_raw_df$j = as.factor(v_raw_df$j)
 plt_v_obv = ggplot(data=v_raw_df) +
     geom_line(aes(x=x,y=yt), color="steelblue") +
-    geom_point(aes(x=x, y=ys, color=j)) +
+    geom_point(aes(x=x, y=ys, color=j), shape=18, size=1.5) +
     facet_wrap(~j)
 
 v_lam_df_m = melt(sp_lam_df, id=c("J"))
