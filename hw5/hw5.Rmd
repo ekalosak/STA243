@@ -344,7 +344,7 @@ It remains to show that $E(||(I-H_\lambda)e||^2) =
 \sigma^2tr(I (H_\lambda-I)(H_\lambda-I)^\top I^\top)$ because
 $Cov(e) = I\sigma^2$.
 
-6. $ tr(I (H_\lambda-I)(H_\lambda-I)^\top I^\top) = \sum_{i=1}^n (h_{ii}-1)^2$.
+6. $tr(I (H_\lambda-I)(H_\lambda-I)^\top I^\top) = \sum_{i=1}^n (h_{ii}-1)^2$.
 
 7. $\sum_{i=1}^n (h_{\lambda,ii} - 1)^2 =
    tr(H_\lambda H_\lambda^\top) -2tr(H_\lambda) + n$
@@ -446,7 +446,8 @@ and $\epsilon_i \sim\textrm{iid}N(0,1)$.
 ```{r}
 ## Parameterize
 J = 2 # number of noise regimes
-M = 5 # number of simulations
+M = 3 # number of simulations
+L = 50 # number of lambdas to grid search
 p = 3 # dimension of spline
 k = 30 # number of knots
 n = 200 # number of observations
@@ -455,7 +456,7 @@ b = 1
 knots = seq(a, b, length.out=k)
 xs = ((1:n)-0.5)/n
 fxs = f(xs)
-lambdas = 10^seq(-11,-3, length.out=50)
+lambdas = 10^seq(-10,-5, length.out=L)
 
 ## Setup
 # Data storage objects
@@ -531,6 +532,7 @@ plt_noise_lams = ggplot(data=noise_lam_df_m) +
     geom_boxplot(aes(x=J, y=value, color=J), outlier.shape=NA) +
     coord_cartesian(ylim = ylims*1.05) +
     facet_wrap(~variable) +
+    scale_y_log10() +
     labs(x="Noise regime", y=TeX("Optimal $\\lambda$"),
          title=TeX("Stability of different methods for estimating $\\lambda$"))
 ```
@@ -551,18 +553,29 @@ to be smoother - to fit less tightly to the noisy data - as the level of noise
 increases.
 
 ## Performance under different design density
+In this section, I examine the effect of different densities of $x_i$ values on
+the four different penalty parameter selection methods. I use the following
+model as in Lee (2003):
+
+$$
+y_{ij} = f(X_{ij}) + \sigma\epsilon_i \quad \textrm{where} \quad
+\sigma = 0.1, X_{ij} = F^{-1}(X_i),
+F(X) = \textrm{Beta}(\frac{j+4}{5}, \frac{11-j}{5}), X_i\sim \textrm{Unif}(0,1)
+$$
+
 
 ```{r}
 ## Parameterize
-J = 4 # number of noise regimes
-M = 15 # number of simulations
+J = 2 # number of noise regimes
+M = 3 # number of simulations
+L = 50 # number of lambdas to grid search
 p = 3 # dimension of spline
 k = 30 # number of knots
 n = 200 # number of observations
 a = 0
 b = 1
 knots = seq(a, b, length.out=k)
-lambdas = 10^seq(-11,-3, length.out=50)
+lambdas = 10^seq(-9,-5, length.out=L)
 
 ## Setup
 # Data storage objects
@@ -641,6 +654,7 @@ dens_lam_df_m$J = as.factor(dens_lam_df_m$J)
 ylims = boxplot.stats(dens_lam_df_m$value)$stats[c(1, 5)]
 plt_dens_lams = ggplot(data=dens_lam_df_m) +
     geom_boxplot(aes(x=J, y=value, color=J), outlier.shape=NA) +
+    scale_y_log10() +
     coord_cartesian(ylim = ylims*1.05) +
     facet_wrap(~variable)
 ```
@@ -664,6 +678,116 @@ knot seletion protocol might mitigate some of the instability of the penalty
 parameter estimates observed for $j\in\{1,2,5,6\}$.
 
 ## Performance under different frequency of target function
+In this section I examine the effects of spatial varaition on the stability of
+the penalty parameter $\lambda$. I use the following model:
+
+$$
+y_{ij} = f_j(x_{i}) + \sigma\epsilon_i \quad \textrm{where} \quad
+\sigma = 0.2,
+f_j(x) = \sqrt{x*(1-x)}\textrm{sin}(\frac{2\pi(1+2^{(9-4j)/5})}{
+x+2^{(9-4j)/5}}), \epsilon_i\sim \textrm{iid}N(0,1)
+$$
+
+```{r}
+## Parameterize
+J = 2 # number of noise regimes
+M = 3 # number of simulations
+L = 50 # number of lambdas to test
+p = 3 # dimension of spline
+k = 30 # number of knots
+n = 200 # number of observations
+a = 0
+b = 1
+knots = seq(a, b, length.out=k)
+xs = ((1:n)-0.5)/n
+lambdas = 10^seq(-11,-1, length.out=L)
+
+## Subroutines
+ff = function(x, j){
+    r = sqrt(x*(1-x))*sin((2*pi*(1+2^((9-4*j)/5)))/(x+2^((9-4*j)/5)))
+    return(r)
+}
+
+## Setup
+# Data storage objects
+sp_raw_df = data.frame(x=NA, yt=NA, ys=NA, j=NA) # observations for plotting
+sp_lam_df = data.frame( # best lambda for each simulation 1:M
+    cv=rep(NA, J*M), gcv=rep(NA, J*M), aic=rep(NA, J*M), er=rep(NA, J*M),
+    J=rep(NA, J*M))
+
+D = diag(c(rep(0, p+1), rep(1, k)))
+X1 = outer(xs, 0:p, "^")
+X2 = outer(xs, knots, ">")*outer(xs, knots, "-")^p # source [2]
+X = cbind(X1, X2)
+
+for(j in 1:J){
+
+    fxs = ff(xs, j)
+
+    for(i in 1:M){
+
+        # generate observatons
+        Y = fxs + rnorm(n, mean=0, sd=0.2)
+
+        # calculate lambda using each method
+        cvs = cvv(k=k, l=lambdas, X=X, Y=Y)
+        gcvs = gcvv(k=k, l=lambdas, X=X, Y=Y)
+        aiccs = aiccv(k=k, l=lambdas, X=X, Y=Y)
+
+        bcv = min(cvs) # best cv score is lowest
+        cv_lam = lambdas[which(cvs == bcv)]
+
+        ers = erv(k=k, l=lambdas, X=X, Y=Y, lp=cv_lam) # need cv_lam for pilot
+
+        bgcv = min(gcvs)
+        gcv_lam = lambdas[which(gcvs == bgcv)]
+        baicc = min(aiccs)
+        aicc_lam = lambdas[which(aiccs == baicc)]
+        ber = min(ers)
+        er_lam = lambdas[which(ers == ber)]
+
+        ix = (j-1)*M + i
+        sp_lam_df$J[ix] = j
+        sp_lam_df$cv[ix] = cv_lam
+        sp_lam_df$gcv[ix] = gcv_lam
+        sp_lam_df$aic[ix] = aicc_lam
+        sp_lam_df$er[ix] = er_lam
+
+    }
+
+    # record an example of the observations generated in this noise regime
+    tdf = data.frame(x=xs, yt=fxs, ys=Y, j=rep(j, n)) # observations for plotting
+    sp_raw_df = rbind(sp_raw_df, tdf)
+}
+
+sp_raw_df = subset(sp_raw_df, ! is.na(j)) # remove the NA row
+sp_raw_df$j = as.factor(sp_raw_df$j)
+plt_sp_obv = ggplot(data=sp_raw_df) +
+    geom_line(aes(x=x,y=yt), color="steelblue") +
+    geom_point(aes(x=x, y=ys, color=j)) +
+    facet_wrap(~j)
+
+sp_lam_df_m = melt(sp_lam_df, id=c("J"))
+sp_lam_df_m$J = as.factor(sp_lam_df_m$J)
+plt_sp_lams = ggplot(data=sp_lam_df_m) +
+    geom_boxplot(aes(x=J, y=value, color=J)) +
+    scale_y_log10() +
+    facet_wrap(~variable)
+```
+
+```{r echo=F}
+plt_sp_obv
+```
+  
+As illustrated above, increasing $j$ increases the frequency of the spatial
+distribution function $f(x)$.
+
+```{r echo=F}
+plt_sp_lams
+```
+  
+Interestingly, increased spatial frequency stabilizes the estimates of the
+penalty parameter to a point.
 
 ## Performance under heterogeneous variances
 

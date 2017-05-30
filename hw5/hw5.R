@@ -327,46 +327,135 @@ X = cbind(X1, X2)
 #     facet_wrap(~variable)
 
 
-### SPATIAL VARIATION
+# ### SPATIAL VARIATION
+
+
+# J = 2 # number of noise regimes
+# M = 3 # number of simulations
+# L = 200 # number of lambdas to test
+# p = 3 # dimension of spline
+# k = 30 # number of knots
+# n = 200 # number of observations
+# a = 0
+# b = 1
+# knots = seq(a, b, length.out=k)
+# xs = ((1:n)-0.5)/n
+# lambdas = 10^seq(-11,-1, length.out=L)
+
+# ## Subroutines
+# ff = function(x, j){
+#     r = sqrt(x*(1-x))*sin((2*pi*(1+2^((9-4*j)/5)))/(x+2^((9-4*j)/5)))
+#     return(r)
+# }
+
+# ## Setup
+# # Data storage objects
+# sp_raw_df = data.frame(x=NA, yt=NA, ys=NA, j=NA) # observations for plotting
+# sp_lam_df = data.frame( # best lambda for each simulation 1:M
+#     cv=rep(NA, J*M), gcv=rep(NA, J*M), aic=rep(NA, J*M), er=rep(NA, J*M),
+#     J=rep(NA, J*M))
+
+# D = diag(c(rep(0, p+1), rep(1, k)))
+# X1 = outer(xs, 0:p, "^")
+# X2 = outer(xs, knots, ">")*outer(xs, knots, "-")^p # source [2]
+# X = cbind(X1, X2)
+
+# for(j in 1:J){
+
+#     fxs = ff(xs, j)
+
+#     for(i in 1:M){
+
+#         # generate observatons
+#         Y = fxs + rnorm(n, mean=0, sd=0.2)
+
+#         # calculate lambda using each method
+#         cvs = cvv(k=k, l=lambdas, X=X, Y=Y)
+#         gcvs = gcvv(k=k, l=lambdas, X=X, Y=Y)
+#         aiccs = aiccv(k=k, l=lambdas, X=X, Y=Y)
+
+#         bcv = min(cvs) # best cv score is lowest
+#         cv_lam = lambdas[which(cvs == bcv)]
+
+#         ers = erv(k=k, l=lambdas, X=X, Y=Y, lp=cv_lam) # need cv_lam for pilot
+
+#         bgcv = min(gcvs)
+#         gcv_lam = lambdas[which(gcvs == bgcv)]
+#         baicc = min(aiccs)
+#         aicc_lam = lambdas[which(aiccs == baicc)]
+#         ber = min(ers)
+#         er_lam = lambdas[which(ers == ber)]
+
+#         print(j, i)
+#         ix = (j-1)*M + i
+#         sp_lam_df$J[ix] = j
+#         sp_lam_df$cv[ix] = cv_lam
+#         sp_lam_df$gcv[ix] = gcv_lam
+#         sp_lam_df$aic[ix] = aicc_lam
+#         sp_lam_df$er[ix] = er_lam
+
+#     }
+
+#     # record an example of the observations generated in this noise regime
+#     tdf = data.frame(x=xs, yt=fxs, ys=Y, j=rep(j, n)) # observations for plotting
+#     sp_raw_df = rbind(sp_raw_df, tdf)
+# }
+
+# sp_raw_df = subset(sp_raw_df, ! is.na(j)) # remove the NA row
+# sp_raw_df$j = as.factor(sp_raw_df$j)
+# plt_sp_obv = ggplot(data=sp_raw_df) +
+#     geom_line(aes(x=x,y=yt), color="steelblue") +
+#     geom_point(aes(x=x, y=ys, color=j)) +
+#     facet_wrap(~j)
+
+# sp_lam_df_m = melt(sp_lam_df, id=c("J"))
+# sp_lam_df_m$J = as.factor(sp_lam_df_m$J)
+# plt_sp_lams = ggplot(data=sp_lam_df_m) +
+#     geom_boxplot(aes(x=J, y=value, color=J)) +
+#     scale_y_log10() +
+#     facet_wrap(~variable)
+
+### VARIANCE VARIATION
 
 
 J = 2 # number of noise regimes
 M = 3 # number of simulations
+L = 200 # number of lambdas to test
 p = 3 # dimension of spline
 k = 30 # number of knots
 n = 200 # number of observations
 a = 0
 b = 1
 knots = seq(a, b, length.out=k)
-lambdas = 10^seq(-11,-3, length.out=50)
+xs = ((1:n)-0.5)/n
+lambdas = 10^seq(-11,-1, length.out=L)
+
+## Subroutines
+ff = function(x, j){
+    r = sqrt(x*(1-x))*sin((2*pi*(1+2^((9-4*j)/5)))/(x+2^((9-4*j)/5)))
+    return(r)
+}
 
 ## Setup
 # Data storage objects
-xts = ((1:n)-0.05)/n
-yts = f(xts)
-dens_raw_df = data.frame(x=xts, y=yts, j=rep(0, n)) # observations for plotting
-dens_lam_df = data.frame( # best lambda for each simulation 1:M
-    cv=rep(NA, J*M), gcv=rep(NA, J*M), aic=rep(NA, J*M), er=rep(NA, J*M),
-    J=rep(NA, J*M))
-dens_sco_df = data.frame( # score of the corresponding best lambda
+sp_raw_df = data.frame(x=NA, yt=NA, ys=NA, j=NA) # observations for plotting
+sp_lam_df = data.frame( # best lambda for each simulation 1:M
     cv=rep(NA, J*M), gcv=rep(NA, J*M), aic=rep(NA, J*M), er=rep(NA, J*M),
     J=rep(NA, J*M))
 
 D = diag(c(rep(0, p+1), rep(1, k)))
+X1 = outer(xs, 0:p, "^")
+X2 = outer(xs, knots, ">")*outer(xs, knots, "-")^p # source [2]
+X = cbind(X1, X2)
 
 for(j in 1:J){
 
+    fxs = ff(xs, j)
+
     for(i in 1:M){
 
-        # variable density Xs
-        xs = qbeta(runif(n), (j+4)/5, (11-j)/5)
-        fxs = f(xs)
-        X1 = outer(xs, 0:p, "^")
-        X2 = outer(xs, knots, ">")*outer(xs, knots, "-")^p # source [2]
-        X = cbind(X1, X2)
-
         # generate observatons
-        Y = fxs + rnorm(n, mean=0, sd=0.1)
+        Y = fxs + rnorm(n, mean=0, sd=0.2)
 
         # calculate lambda using each method
         cvs = cvv(k=k, l=lambdas, X=X, Y=Y)
@@ -387,33 +476,29 @@ for(j in 1:J){
 
         print(j, i)
         ix = (j-1)*M + i
-        dens_lam_df$J[ix] = j
-        dens_lam_df$cv[ix] = cv_lam
-        dens_lam_df$gcv[ix] = gcv_lam
-        dens_lam_df$aic[ix] = aicc_lam
-        dens_lam_df$er[ix] = er_lam
-
-        dens_sco_df$cv[ix] = bcv
-        dens_sco_df$gcv[ix] = bgcv
-        dens_sco_df$aic[ix] = baicc
-        dens_sco_df$er[ix] = ber
+        sp_lam_df$J[ix] = j
+        sp_lam_df$cv[ix] = cv_lam
+        sp_lam_df$gcv[ix] = gcv_lam
+        sp_lam_df$aic[ix] = aicc_lam
+        sp_lam_df$er[ix] = er_lam
 
     }
 
     # record an example of the observations generated in this noise regime
-    tdf = data.frame(x=xs, y=Y, j=rep(j, n)) # observations for plotting
-    dens_raw_df = rbind(dens_raw_df, tdf)
+    tdf = data.frame(x=xs, yt=fxs, ys=Y, j=rep(j, n)) # observations for plotting
+    sp_raw_df = rbind(sp_raw_df, tdf)
 }
 
-dens_raw_df$j = as.factor(dens_raw_df$j)
-drdf0 = subset(dens_raw_df, j == 0, select=c("x","y"))
-plt_dens_obv = ggplot(data=drdf0) +
-    geom_line(aes(x=x,y=y), color="steelblue") +
-    geom_point(data=subset(dens_raw_df, j != 0), aes(x=x, y=y, color=j)) +
+sp_raw_df = subset(sp_raw_df, ! is.na(j)) # remove the NA row
+sp_raw_df$j = as.factor(sp_raw_df$j)
+plt_sp_obv = ggplot(data=sp_raw_df) +
+    geom_line(aes(x=x,y=yt), color="steelblue") +
+    geom_point(aes(x=x, y=ys, color=j)) +
     facet_wrap(~j)
 
-dens_lam_df_m = melt(dens_lam_df, id=c("J"))
-dens_lam_df_m$J = as.factor(dens_lam_df_m$J)
-plt_dens_lams = ggplot(data=dens_lam_df_m) +
+sp_lam_df_m = melt(sp_lam_df, id=c("J"))
+sp_lam_df_m$J = as.factor(sp_lam_df_m$J)
+plt_sp_lams = ggplot(data=sp_lam_df_m) +
     geom_boxplot(aes(x=J, y=value, color=J)) +
+    scale_y_log10() +
     facet_wrap(~variable)
