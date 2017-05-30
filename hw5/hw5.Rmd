@@ -81,7 +81,7 @@ following functional within the class $\mathbf{F}$ of cubic regression splines:
 
 $$
 \hat{f}_\lambda(x) =
-\textrm{argmin}_{f\in\mathbf{F}} \frac{1}{n}\sum_{i=1}^{n}(y_i-f(x_i))^2 +
+\textrm{argmin}_{f\in\mathbf{F}} \sum_{i=1}^{n}(y_i-f(x_i))^2 +
     \lambda\sum_{j=1}^{k} \beta_{p_j}^2 =
 ||y-f(x)||_2^2 + \lambda\beta^\top D\beta
 $$
@@ -264,7 +264,6 @@ $\lambda_{GCV}=`r lambdas[which(gcvs == min(gcvs))]`$
 with a generalized cross validation score of
 $GCV(\lambda_{GCV})=`r min(gcvs)`$.
 
-
 ## Akaike information criterion (AIC)
 
 $$
@@ -316,6 +315,84 @@ with a generalized cross validation score of
 $AIC_C(\lambda_{AIC_C})=`r min(aiccs)`$.
 
 ## Emperical risk minimization (ERM)
+
+In trying to minimize $risk(\lambda) = E(||f-\hat{f}_\lambda||^2)$, I actually
+minimize an estimate of this quantity because the true $f$ is inaccessable.
+First, I prove that
+$E(||y-\hat{f}_\lambda||^2) = ||(I-H_\lambda)f||^2 +
+    \sigma^2(tr(H_\lambda H_\lambda^\top) -2tr(H_\lambda) + n)$
+to get a sense for what this estimate will look like.
+
+1. $E(||y-\hat{f}_\lambda||^2) = E(||(I-H_\lambda)y||^2)$ because
+$\hat{f}_\lambda = H_\lambda y$ and real matricies have both left and right
+distributivity.
+
+2. $E(||(I-H_\lambda)y||^2) = E(||(I-H_\lambda)(f + e)||^2)$ because $y=f+e$.
+
+3. $E(||(I-H_\lambda)(f + e)||^2) =
+E(||(I-H_\lambda)f||^2 + ||(I-H_\lambda)e)||^2)$ because $E(e)=0$ by
+assumpion and the distributivity property noted in (1).
+
+4. $E(||(I-H_\lambda)f||^2 + ||(I-H_\lambda)e||^2) =
+||(I-H_\lambda)f||^2 + E(||(I-H_\lambda)e)||^2$ because the lefthand quantity is
+a constant.
+It remains to show that $E(||(I-H_\lambda)e||^2) =
+\sigma^2(tr(H_\lambda H_\lambda^\top) -2tr(H_\lambda) + n)$
+
+5. $tr(H_\lambda H_\lambda^\top) -2tr(H_\lambda) + n =
+\sum_{i=1}^n (h_{\lambda,ii} - 1)^2$
+
+6. $E(||(I-H_\lambda)e||^2) =
+\sigma^2(n + tr(H_\lambda H_\lambda^\top) -2tr(H_\lambda)$ because
+$Cov(e) = I\sigma^2$ and
+$tr(H_\lambda H_\lambda^\top) - 2tr(H_\lambda) + n =
+\sum_{i=1}^n h_{ii}^2 - 2h_{ii} + 1 = \sum_{i=1}^n (h_{ii}-1)^2 =
+tr(I (H_\lambda-I)(H_\lambda-I)^\top I^\top)$.
+
+completing the proof.
+
+```{r}
+er = function(X=X, Y=Y, k=k, l){
+    # k is num knots
+    # l is lambda, penalty
+    # X is design matrix
+    # Y is response
+
+    n = dim(X)[1]
+    D = diag(c(rep(0, dim(X)[2]-k), rep(1, k)))
+    H = X %*% solve(t(X) %*% X + l*D) %*% t(X)
+
+    fhys = H %*% Y
+    tr = sum(diag(H))
+
+    r1 = log(mean((Y-fhys)^2))
+    r2n = 2*(tr+1)
+    r2d = n - tr - 2
+    r = r1 + r2n/r2d
+    return(r)
+}
+
+aiccv = Vectorize(aicc, vectorize.args = c("l"))
+lambdas = 10^(seq(-8, -3, length.out=100))
+aiccs = aiccv(X=X, Y=Y, l=lambdas, k=k)
+
+aicc_df = data.frame(x=lambdas, y=aiccs)
+plt_aicc = ggplot(data=aicc_df) +
+    geom_line(aes(x=x, y=y), color="steelblue") +
+    labs(x="Smoothing Penalty", y="Corrected AIC Score",
+         title="Corrected AIC scores for smoothing parameter") +
+    scale_x_log10() +
+    geom_vline(xintercept = lambdas[which(aiccs == min(aiccs))], color="coral")
+```
+
+```{r echo=F}
+plt_aicc
+```
+
+Note that the minimizing smoothing penalty is
+$\lambda_{AIC_C}=`r lambdas[which(aiccs == min(aiccs))]`$
+with a generalized cross validation score of
+$AIC_C(\lambda_{AIC_C})=`r min(aiccs)`$.
 
 # Comparison of methods for smoothing parameter selection
 

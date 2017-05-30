@@ -1,3 +1,5 @@
+# E(||e^\top e||^2 + ||(H_\lambda e)^\top H_\lambda e||^2 -
+#||e(H_\lambda e)^\top||^2 - ||H_\lambda e e^\top||^2) =
 rm(list=ls())
 
 ## Imports
