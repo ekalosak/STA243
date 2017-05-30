@@ -431,15 +431,15 @@ xs = ((1:n)-0.5)/n
 lambdas = 10^seq(-11,-1, length.out=L)
 
 ## Subroutines
-ff = function(x, j){
-    r = sqrt(x*(1-x))*sin((2*pi*(1+2^((9-4*j)/5)))/(x+2^((9-4*j)/5)))
-    return(r)
+fv = function(x, j){
+    r = (0.15*(1+0.4*(2*j-7)*(x-0.5)))^2
+    return(sqrt(r))
 }
 
 ## Setup
 # Data storage objects
-sp_raw_df = data.frame(x=NA, yt=NA, ys=NA, j=NA) # observations for plotting
-sp_lam_df = data.frame( # best lambda for each simulation 1:M
+v_raw_df = data.frame(x=NA, yt=NA, ys=NA, j=NA) # observations for plotting
+v_lam_df = data.frame( # best lambda for each simulation 1:M
     cv=rep(NA, J*M), gcv=rep(NA, J*M), aic=rep(NA, J*M), er=rep(NA, J*M),
     J=rep(NA, J*M))
 
@@ -447,15 +447,14 @@ D = diag(c(rep(0, p+1), rep(1, k)))
 X1 = outer(xs, 0:p, "^")
 X2 = outer(xs, knots, ">")*outer(xs, knots, "-")^p # source [2]
 X = cbind(X1, X2)
+fxs = f(xs)
 
 for(j in 1:J){
-
-    fxs = ff(xs, j)
 
     for(i in 1:M){
 
         # generate observatons
-        Y = fxs + rnorm(n, mean=0, sd=0.2)
+        Y = fxs + fv(xs, j)*rnorm(n, mean=0, sd=1)
 
         # calculate lambda using each method
         cvs = cvv(k=k, l=lambdas, X=X, Y=Y)
@@ -486,19 +485,19 @@ for(j in 1:J){
 
     # record an example of the observations generated in this noise regime
     tdf = data.frame(x=xs, yt=fxs, ys=Y, j=rep(j, n)) # observations for plotting
-    sp_raw_df = rbind(sp_raw_df, tdf)
+    v_raw_df = rbind(v_raw_df, tdf)
 }
 
-sp_raw_df = subset(sp_raw_df, ! is.na(j)) # remove the NA row
-sp_raw_df$j = as.factor(sp_raw_df$j)
-plt_sp_obv = ggplot(data=sp_raw_df) +
+v_raw_df = subset(v_raw_df, ! is.na(j)) # remove the NA row
+v_raw_df$j = as.factor(v_raw_df$j)
+plt_v_obv = ggplot(data=v_raw_df) +
     geom_line(aes(x=x,y=yt), color="steelblue") +
     geom_point(aes(x=x, y=ys, color=j)) +
     facet_wrap(~j)
 
-sp_lam_df_m = melt(sp_lam_df, id=c("J"))
-sp_lam_df_m$J = as.factor(sp_lam_df_m$J)
-plt_sp_lams = ggplot(data=sp_lam_df_m) +
+v_lam_df_m = melt(sp_lam_df, id=c("J"))
+v_lam_df_m$J = as.factor(v_lam_df_m$J)
+plt_v_lams = ggplot(data=v_lam_df_m) +
     geom_boxplot(aes(x=J, y=value, color=J)) +
     scale_y_log10() +
     facet_wrap(~variable)

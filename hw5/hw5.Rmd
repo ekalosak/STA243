@@ -791,6 +791,110 @@ penalty parameter to a point.
 
 ## Performance under heterogeneous variances
 
+```{r}
+## Parameterize
+J = 2 # number of noise regimes
+M = 3 # number of simulations
+L = 200 # number of lambdas to test
+p = 3 # dimension of spline
+k = 30 # number of knots
+n = 200 # number of observations
+a = 0
+b = 1
+knots = seq(a, b, length.out=k)
+xs = ((1:n)-0.5)/n
+lambdas = 10^seq(-11,-1, length.out=L)
+
+## Subroutines
+fv = function(x, j){
+    r = (0.15*(1+0.4*(2*j-7)*(x-0.5)))^2
+    return(sqrt(r))
+}
+
+## Setup
+# Data storage objects
+v_raw_df = data.frame(x=NA, yt=NA, ys=NA, j=NA) # observations for plotting
+v_lam_df = data.frame( # best lambda for each simulation 1:M
+    cv=rep(NA, J*M), gcv=rep(NA, J*M), aic=rep(NA, J*M), er=rep(NA, J*M),
+    J=rep(NA, J*M))
+
+D = diag(c(rep(0, p+1), rep(1, k)))
+X1 = outer(xs, 0:p, "^")
+X2 = outer(xs, knots, ">")*outer(xs, knots, "-")^p # source [2]
+X = cbind(X1, X2)
+fxs = f(xs)
+
+for(j in 1:J){
+
+    for(i in 1:M){
+
+        # generate observatons
+        Y = fxs + fv(xs, j)*rnorm(n, mean=0, sd=1)
+
+        # calculate lambda using each method
+        cvs = cvv(k=k, l=lambdas, X=X, Y=Y)
+        gcvs = gcvv(k=k, l=lambdas, X=X, Y=Y)
+        aiccs = aiccv(k=k, l=lambdas, X=X, Y=Y)
+
+        bcv = min(cvs) # best cv score is lowest
+        cv_lam = lambdas[which(cvs == bcv)]
+
+        ers = erv(k=k, l=lambdas, X=X, Y=Y, lp=cv_lam) # need cv_lam for pilot
+
+        bgcv = min(gcvs)
+        gcv_lam = lambdas[which(gcvs == bgcv)]
+        baicc = min(aiccs)
+        aicc_lam = lambdas[which(aiccs == baicc)]
+        ber = min(ers)
+        er_lam = lambdas[which(ers == ber)]
+
+        ix = (j-1)*M + i
+        sp_lam_df$J[ix] = j
+        sp_lam_df$cv[ix] = cv_lam
+        sp_lam_df$gcv[ix] = gcv_lam
+        sp_lam_df$aic[ix] = aicc_lam
+        sp_lam_df$er[ix] = er_lam
+
+    }
+
+    # record an example of the observations generated in this noise regime
+    tdf = data.frame(x=xs, yt=fxs, ys=Y, j=rep(j, n)) # observations for plotting
+    v_raw_df = rbind(v_raw_df, tdf)
+}
+
+v_raw_df = subset(v_raw_df, ! is.na(j)) # remove the NA row
+v_raw_df$j = as.factor(v_raw_df$j)
+plt_v_obv = ggplot(data=v_raw_df) +
+    geom_line(aes(x=x,y=yt), color="steelblue") +
+    geom_point(aes(x=x, y=ys, color=j)) +
+    facet_wrap(~j)
+
+v_lam_df_m = melt(sp_lam_df, id=c("J"))
+v_lam_df_m$J = as.factor(v_lam_df_m$J)
+plt_v_lams = ggplot(data=v_lam_df_m) +
+    geom_boxplot(aes(x=J, y=value, color=J)) +
+    scale_y_log10() +
+    facet_wrap(~variable)
+```
+
+```{r echo=F}
+plt_v_obv
+```
+  
+As illustrated above, this method for varying the variance spacially incurs a
+high variance for the lefthand side when $j$ is small and a high variance for
+the righthand side when $j$ is large.
+
+```{r echo=F}
+plt_v_lams
+```
+  
+Spatial varaince modulation destabilizes smoothing parameter estimates. Having
+`r k` equispaced knots is a serious issue here and a more dynamic collocation
+proceedure would ameliorate some of this instability in the $\lambda$ estimates.
+
+# Conclusions
+
 # Sources
 1. http://data.princeton.edu/eco572/smoothing.pdf
 2. http://people.stat.sfu.ca/~cschwarz/Consulting/Trinity/Phase2/TrinityWorkshop/Workshop-handouts/TW-04-Intro-splines.pdf
