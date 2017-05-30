@@ -24,10 +24,16 @@ $$
 
 Where $(x)_{+} = \textrm{max}(x, 0)$, $p$ is the degree of the spline, the
 $t_j$ are the locations of the knots,
-and $\beta = [\beta_0, \dots, \beta_{p_k}]$ are the regression coefficients.
+and $\beta = [\beta_0, \dots, \beta_{p_k}]$ are the regression coefficients. I
+solve for the $\beta$ coefficients by minimizing a penalized functional shown
+later in the report - this is what makes the spline "penalized". Using $k<n$
+knots makes the spline a "regression" rather than "smoothing". I fit a spline to
+a target function $f(x)$, but the spline may not be too overfit and it must have
+$k<<n$ homogenously collocated knots - both conditions will be discussed in more
+detail and formality in following sections.
 
-An example $f(x)$ follows, and I will use it repeatedly to contextualize
-theoretical statements throughout this report.
+An example target function $f(x)$ follows, and I will use it repeatedly to
+contextualize theoretical statements throughout this report.
 
 $$
 f(x) = 1.5*\Phi(\frac{x-0.35}{0.15}) - \Phi(\frac{x-0.8}{0.04})
@@ -64,20 +70,23 @@ plt_pdf = ggplot(data=pdf_df) +
 plt_pdf
 ```
 
-In this report, I simulate 4 different methods for selecting a smoothing
-parameter $\lambda$ under 6 different noise, design density, spatial variation,
-and variance heterogeneity states.
-
 # Introduction
+In this report, I simulate six different methods for selecting a penalty
+parameter $\lambda$ under six different noise, design density, spatial variation,
+and variance heterogeneity states.
+The four aforementioned methods for fitting the penalty parameter
+$\lambda$ for a penalized cubic regression spline are minimizations of the
+following scores: cross validation, generalized cross validation, corrected
+Akaike information criterion, and expected risk.
+
 In this section, I introduce, the concepts required for the simulation in the
 context of a simple example: $y=f(x)+\epsilon$. For the rest of this section,
 the reader may assume, unless I state otherwise, that $f(x)$ is the example
 function defined in the previous section.
 
-In this report, I consider four methods for fitting the smoothing parameter
-$\lambda$ for a penalized cubic regression spline. The cubic spline
-$\hat{f}_\lambda(x)$ approximates $f(x)$ and is defined as the minimizer of the
-following functional within the class $\mathbf{F}$ of cubic regression splines:
+To fit a cubic penalized regression spline $\hat{f}_\lambda(x)$ which
+approximates $f(x)$, I minimize the following functional within the class
+$\mathbf{F}$ of cubic regression splines:
 
 $$
 \hat{f}_\lambda(x) =
@@ -95,9 +104,11 @@ $$
 \hat{f}_\lambda(x) = x(x^\top x+\lambda D)^{-1} x^\top y = H_\lambda y
 $$
 
-The following `R` code calculates the matrix $H_\lambda$, generates noisy
-observations from the previously defined example function $f(x)$, and fits
-penalized cubic regression splines for a number of evocative values of
+Notice that this is effectively ridge regression on the knot coefficients and
+ordinary least squares on the non-knot coefficients. The following `R` code
+calculates the matrix $H_\lambda$, generates noisy
+observations from the previously defined example target function $f(x)$, and
+fits penalized cubic regression splines for a number of evocative values of
 $\lambda$.
 
 ```{r}
@@ -158,11 +169,11 @@ plt_mx = ggplot(data=lam_df) +
 plt_mx
 ```
 
-# Smoothing parameter selection
-In this report, I am concerned with the selection of the smoothing parameter
+# Penalty parameter selection
+In this report, I am concerned with the selection of the penalty parameter
 $\lambda$.
 As stated in the introduction, I consider four methods for selecting the
-optimal smoothing parameter $\lambda$. In this section, I describe and perform
+optimal penalty parameter $\lambda$. In this section, I describe and perform
 cross validation, generalized cross validation, improved AIC, and $L_2$ risk
 minimization on a single experimental simulation setting. In the following
 section, I perform these methods on a variety of experimental simulation
@@ -170,6 +181,10 @@ settings, but I've simplified this section to expose the methodology to the
 reader.
 
 ## Cross validation (CV)
+
+I am interested in finding the value of $\lambda$ that minimizes the following
+function for a particular sample $\{x_i,y_i\}$. I accomplish this with a simple
+grid search over an appropriate range of $\lambda>0$.
 
 $$
 CV(\lambda) = \frac{1}{N}\sum_{i=1}^{N}
@@ -217,6 +232,11 @@ with a cross validation score of
 $CV(\lambda_{CV})=`r min(cvs)`$.
 
 ## Generalized cross validation (GCV)
+
+As in the preceeding subsection, I am interested in finding the value of
+$\lambda$ that minimizes the following function for a particular sample
+$\{x_i,y_i\}$. I accomplish this with a simple grid search over an appropriate
+range of $\lambda>0$.
 
 $$
 GCV(\lambda) = \frac{\frac{1}{N}\sum_{i=1}^{N}
@@ -266,6 +286,10 @@ with a generalized cross validation score of
 $GCV(\lambda_{GCV})=`r min(gcvs)`$.
 
 ## Akaike information criterion (AIC)
+
+As in the preceeding subsection, I am interested in finding the value of
+$\lambda$ that minimizes the following function for a particular sample
+$\{x_i,y_i\}$, and I use the same methods to find it.
 
 $$
 AIC_C(\lambda) = \textrm{log}(||y-\hat{f}_\lambda||_2^2) +
@@ -318,7 +342,9 @@ $AIC_C(\lambda_{AIC_C})=`r min(aiccs)`$.
 ## Emperical risk minimization (ERM)
 
 In trying to minimize $risk(\lambda) = E(||f-\hat{f}_\lambda||^2)$, I actually
-minimize an estimate of this quantity because the true $f$ is inaccessable.
+minimize an estimate of this quantity because the true $f$ is inaccessable by
+assumption. I need a related quantity to serve as an estimate.
+
 First, I prove that
 $E(||y-\hat{f}_\lambda||^2) = ||(I-H_\lambda)f||^2 +
     \sigma^2(tr(H_\lambda H_\lambda^\top) -2tr(H_\lambda) + n)$
@@ -445,9 +471,9 @@ and $\epsilon_i \sim\textrm{iid}N(0,1)$.
 
 ```{r}
 ## Parameterize
-J = 6 # number of noise regimes
+J = 6 # number of simulation parameterizations
 M = 20 # number of simulations
-L = 75 # number of lambdas to grid search
+L = 150 # number of lambdas to grid search
 p = 3 # dimension of spline
 k = 30 # number of knots
 n = 200 # number of observations
@@ -521,6 +547,10 @@ plt_noise_obv = ggplot(data=melt(noise_raw_df, id=c("x", "yt"))) +
     geom_point(aes(x=x, y=value, color=variable),
                alpha=0.7, size=1.5, shape=18) +
     facet_wrap(~variable) +
+    scale_colour_discrete(
+        labels=as.character(1:J),
+        name="Noise regime (J)"
+    ) +
     labs(x="X", y="Y", title="Observations with different noise")
 
 noise_lam_df_m = melt(noise_lam_df, id=c("J"))
@@ -533,6 +563,10 @@ plt_noise_lams = ggplot(data=noise_lam_df_m) +
     coord_cartesian(ylim = ylims*1.05) +
     facet_wrap(~variable) +
     scale_y_log10() +
+    scale_colour_discrete(
+        labels=as.character(1:J),
+        name="Noise regime (J)"
+    ) +
     labs(x="Noise regime", y=TeX("Optimal $\\lambda$"),
          title=TeX("Stability of different methods for estimating $\\lambda$"))
 ```
@@ -638,7 +672,12 @@ plt_dens_obv = ggplot(data=drdf0) +
     geom_line(aes(x=x,y=y), color="steelblue") +
     geom_point(data=subset(dens_raw_df, j != 0), aes(x=x, y=y, color=j),
                shape=18, size=1.5) +
-    facet_wrap(~j)
+    facet_wrap(~j) +
+    scale_colour_discrete(
+        labels=as.character(1:J),
+        name="Support variance regime (J)"
+    ) +
+    labs(x="X", y="Y", title="Observations with variable support density")
 
 dens_lam_df_m = melt(dens_lam_df, id=c("J"))
 dens_lam_df_m$J = as.factor(dens_lam_df_m$J)
@@ -647,7 +686,13 @@ plt_dens_lams = ggplot(data=dens_lam_df_m) +
     geom_boxplot(aes(x=J, y=value, color=J), outlier.shape=NA) +
     scale_y_log10() +
     coord_cartesian(ylim = ylims*1.05) +
-    facet_wrap(~variable)
+    facet_wrap(~variable) +
+    scale_colour_discrete(
+        labels=as.character(1:J),
+        name="Support variance regime (J)"
+    ) +
+    labs(x="Support variance regime", y=TeX("Optimal $\\lambda$"),
+         title=TeX("Stability of different methods for estimating $\\lambda$"))
 ```
 
 ```{r echo=F}
@@ -747,14 +792,26 @@ sp_raw_df$j = as.factor(sp_raw_df$j)
 plt_sp_obv = ggplot(data=sp_raw_df) +
     geom_line(aes(x=x,y=yt), color="steelblue") +
     geom_point(aes(x=x, y=ys, color=j), shape=18, size=1.5) +
-    facet_wrap(~j)
+    facet_wrap(~j) +
+    scale_colour_discrete(
+        labels=as.character(1:J),
+        name="Function frequency regime (J)"
+    ) +
+    labs(x="X", y="Y",
+        title="Observations generated by different target function frequencies")
 
 sp_lam_df_m = melt(sp_lam_df, id=c("J"))
 sp_lam_df_m$J = as.factor(sp_lam_df_m$J)
 plt_sp_lams = ggplot(data=sp_lam_df_m) +
     geom_boxplot(aes(x=J, y=value, color=J)) +
     scale_y_log10() +
-    facet_wrap(~variable)
+    facet_wrap(~variable) +
+    scale_colour_discrete(
+        labels=as.character(1:J),
+        name="Function frequency regime (J)"
+    ) +
+    labs(x="Target function frequencies", y=TeX("Optimal $\\lambda$"),
+         title=TeX("Stability of different methods for estimating $\\lambda$"))
 ```
 
 ```{r echo=F}
@@ -770,7 +827,7 @@ plt_sp_lams
   
 Interestingly, increased spatial frequency stabilizes the estimates of the
 penalty parameter to a point. Furthermore, as the function becomes more erratic,
-the value of the penalty parameter $\lambda$ increases, forcing the spline to
+the value of the penalty parameter $\lambda$ decreases, forcing the spline to
 hug the data more closely.
 
 ## Performance under heterogeneous variances
@@ -851,14 +908,26 @@ v_raw_df$j = as.factor(v_raw_df$j)
 plt_v_obv = ggplot(data=v_raw_df) +
     geom_line(aes(x=x,y=yt), color="steelblue") +
     geom_point(aes(x=x, y=ys, color=j), shape=18, size=1.5) +
-    facet_wrap(~j)
+    facet_wrap(~j) +
+    scale_colour_discrete(
+        labels=as.character(1:J),
+        name="Variance regime (J)"
+    ) +
+    labs(x="X", y="Y",
+        title="Observations generated by different variance structures")
 
 v_lam_df_m = melt(sp_lam_df, id=c("J"))
 v_lam_df_m$J = as.factor(v_lam_df_m$J)
 plt_v_lams = ggplot(data=v_lam_df_m) +
     geom_boxplot(aes(x=J, y=value, color=J)) +
     scale_y_log10() +
-    facet_wrap(~variable)
+    facet_wrap(~variable) +
+    scale_colour_discrete(
+        labels=as.character(1:J),
+        name="Variance regime (J)"
+    ) +
+    labs(x="Variance structures", y=TeX("Optimal $\\lambda$"),
+         title=TeX("Stability of different methods for estimating $\\lambda$"))
 ```
 
 ```{r echo=F}
@@ -878,6 +947,35 @@ Spatial varaince modulation destabilizes smoothing parameter estimates. Having
 proceedure would ameliorate some of this instability in the $\lambda$ estimates.
 
 # Conclusions
+In this report, I performed a simulation study following Lee (2003) on the
+behavior of penalty parameter $\lambda$ estimates under different target
+function $f(x)$ and noise $\sigma\epsilon$ conditions. For each simulation
+parameterization, there is at least one major qualitative take-away for the
+pragmatic statistician, and these useful observations follow:
+
+1. Higher noise incurs a higher penalty parameter. Essentially, this means that
+   as the obervations deviate further and further from the target function, I
+   give the spline a looser fit to the data. That is, when noise is high, I
+   avoid overfitting.
+2. When observation density is heterogeneous, knot collocation strategies become
+   increasingly important. I observed a reduction in penalty parameter
+   estimation when the observation density was highly skewed, especially when it
+   was skewed away from portions of the target function with large higher order
+   derivatives.
+3. The more erratic the target function, the lower the penalty will be. That is,
+   when the target function is more wiggly, I'll use a lower penalty to force
+   the spline to fit closer to the additional curvature. As expected, the larger
+   the higher order derivatives of the target function, the lower the stability
+   of the penalty estimates across the board. Interestingly, when the curve is
+   too linear, the penalty parameter estimates destabilize slightly - this
+   behavior is worth further investigation.
+4. High variance around nonlinearities in the target function induces
+   instability in the penalty estimate. This is intuitive: I need more data
+   around the complicated parts of the curve to get a good estimate.
+
+Moving forward, theoretical results relating the behavior of these penalty
+parameter estimates to qualities of the target function and noise need to be
+developed.
 
 # Sources
 1. http://data.princeton.edu/eco572/smoothing.pdf
