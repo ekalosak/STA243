@@ -57,3 +57,26 @@ for(lam in lams){
     lam_df[colname] = fhys
 }
 
+aicc = function(X=X, Y=Y, k=k, l){
+    # k is num knots
+    # l is lambda, penalty
+    # X is design matrix
+    # Y is response
+
+    n = dim(X)[1]
+    D = diag(c(rep(0, dim(X)[2]-k), rep(1, k)))
+    H = X %*% solve(t(X) %*% X + l*D) %*% t(X)
+
+    fhys = H %*% Y
+    tr = sum(diag(H))
+
+    r1 = log(mean((Y-fhys)^2))
+    r2n = 2*(tr+1)
+    r2d = n - tr - 2
+    r = r1 + r2n/r2d
+    return(r)
+}
+
+aiccv = Vectorize(aicc, vectorize.args = c("l"))
+lambdas = 10^(seq(-10, -3, length.out=100))
+aiccs = aiccv(X=X, Y=Y, l=lambdas, k=k)
