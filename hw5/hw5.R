@@ -178,11 +178,195 @@ X1 = outer(xs, 0:p, "^")
 X2 = outer(xs, knots, ">")*outer(xs, knots, "-")^p # source [2]
 X = cbind(X1, X2)
 
+# for(j in 1:J){
+
+#     for(i in 1:M){
+#         # generate observatons
+#         Y = fxs + rnorm(n, mean=0, sd=noise_sd(j))
+
+#         # calculate lambda using each method
+#         cvs = cvv(k=k, l=lambdas, X=X, Y=Y)
+#         gcvs = gcvv(k=k, l=lambdas, X=X, Y=Y)
+#         aiccs = aiccv(k=k, l=lambdas, X=X, Y=Y)
+
+#         bcv = min(cvs) # best cv score is lowest
+#         cv_lam = lambdas[which(cvs == bcv)]
+
+#         ers = erv(k=k, l=lambdas, X=X, Y=Y, lp=cv_lam) # need cv_lam for pilot
+
+#         bgcv = min(gcvs)
+#         gcv_lam = lambdas[which(gcvs == bgcv)]
+#         baicc = min(aiccs)
+#         aicc_lam = lambdas[which(aiccs == baicc)]
+#         ber = min(ers)
+#         er_lam = lambdas[which(ers == ber)]
+
+#         print(j, i)
+#         ix = (j-1)*M + i
+#         noise_lam_df$J[ix] = j
+#         noise_lam_df$cv[ix] = cv_lam
+#         noise_lam_df$gcv[ix] = gcv_lam
+#         noise_lam_df$aic[ix] = aicc_lam
+#         noise_lam_df$er[ix] = er_lam
+
+#         noise_sco_df$cv[ix] = bcv
+#         noise_sco_df$gcv[ix] = bgcv
+#         noise_sco_df$aic[ix] = baicc
+#         noise_sco_df$er[ix] = ber
+
+#     }
+
+#     # record an example of the observations generated in this noise regime
+#     colname = paste("J=", j, sep="")
+#     noise_raw_df[colname] = Y
+# }
+
+# plt_noise_obv = ggplot(data=melt(noise_raw_df, id=c("x", "yt"))) +
+#     # geom_line(aes(x=x, y=yt)) +
+#     geom_point(aes(x=x, y=value)) +
+#     facet_wrap(~variable) +
+#     labs(x="X", y="Y", title="Observations with different noise")
+
+# noise_lam_df_m = melt(noise_lam_df, id=c("J"))
+# noise_lam_df_m$J = as.factor(noise_lam_df_m$J)
+
+# plt_noise_lams = ggplot(data=noise_lam_df_m) +
+#     geom_boxplot(aes(x=J, y=value, color=J)) +
+#     facet_wrap(~variable)
+
+
+
+### DENSITY SIMULATION
+
+# J = 2 # number of noise regimes
+# M = 5 # number of simulations
+# p = 3 # dimension of spline
+# k = 30 # number of knots
+# n = 200 # number of observations
+# a = 0
+# b = 1
+# knots = seq(a, b, length.out=k)
+# lambdas = 10^seq(-11,-3, length.out=50)
+
+# ## Setup
+# # Data storage objects
+# xts = ((1:n)-0.05)/n
+# yts = f(xts)
+# dens_raw_df = data.frame(x=xts, y=yts, j=rep(0, n)) # observations for plotting
+# dens_lam_df = data.frame( # best lambda for each simulation 1:M
+#     cv=rep(NA, J*M), gcv=rep(NA, J*M), aic=rep(NA, J*M), er=rep(NA, J*M),
+#     J=rep(NA, J*M))
+# dens_sco_df = data.frame( # score of the corresponding best lambda
+#     cv=rep(NA, J*M), gcv=rep(NA, J*M), aic=rep(NA, J*M), er=rep(NA, J*M),
+#     J=rep(NA, J*M))
+
+# D = diag(c(rep(0, p+1), rep(1, k)))
+
+# for(j in 1:J){
+
+#     for(i in 1:M){
+
+#         # variable density Xs
+#         xs = qbeta(runif(n), (j+4)/5, (11-j)/5)
+#         fxs = f(xs)
+#         X1 = outer(xs, 0:p, "^")
+#         X2 = outer(xs, knots, ">")*outer(xs, knots, "-")^p # source [2]
+#         X = cbind(X1, X2)
+
+#         # generate observatons
+#         Y = fxs + rnorm(n, mean=0, sd=0.1)
+
+#         # calculate lambda using each method
+#         cvs = cvv(k=k, l=lambdas, X=X, Y=Y)
+#         gcvs = gcvv(k=k, l=lambdas, X=X, Y=Y)
+#         aiccs = aiccv(k=k, l=lambdas, X=X, Y=Y)
+
+#         bcv = min(cvs) # best cv score is lowest
+#         cv_lam = lambdas[which(cvs == bcv)]
+
+#         ers = erv(k=k, l=lambdas, X=X, Y=Y, lp=cv_lam) # need cv_lam for pilot
+
+#         bgcv = min(gcvs)
+#         gcv_lam = lambdas[which(gcvs == bgcv)]
+#         baicc = min(aiccs)
+#         aicc_lam = lambdas[which(aiccs == baicc)]
+#         ber = min(ers)
+#         er_lam = lambdas[which(ers == ber)]
+
+#         print(j, i)
+#         ix = (j-1)*M + i
+#         dens_lam_df$J[ix] = j
+#         dens_lam_df$cv[ix] = cv_lam
+#         dens_lam_df$gcv[ix] = gcv_lam
+#         dens_lam_df$aic[ix] = aicc_lam
+#         dens_lam_df$er[ix] = er_lam
+
+#         dens_sco_df$cv[ix] = bcv
+#         dens_sco_df$gcv[ix] = bgcv
+#         dens_sco_df$aic[ix] = baicc
+#         dens_sco_df$er[ix] = ber
+
+#     }
+
+#     # record an example of the observations generated in this noise regime
+#     tdf = data.frame(x=xs, y=Y, j=rep(j, n)) # observations for plotting
+#     dens_raw_df = rbind(dens_raw_df, tdf)
+# }
+
+# dens_raw_df$j = as.factor(dens_raw_df$j)
+# drdf0 = subset(dens_raw_df, j == 0, select=c("x","y"))
+# plt_dens_obv = ggplot(data=drdf0) +
+#     geom_line(aes(x=x,y=y), color="steelblue") +
+#     geom_point(data=subset(dens_raw_df, j != 0), aes(x=x, y=y, color=j)) +
+#     facet_wrap(~j)
+
+# dens_lam_df_m = melt(dens_lam_df, id=c("J"))
+# dens_lam_df_m$J = as.factor(dens_lam_df_m$J)
+# plt_dens_lams = ggplot(data=dens_lam_df_m) +
+#     geom_boxplot(aes(x=J, y=value, color=J)) +
+#     facet_wrap(~variable)
+
+
+### SPATIAL VARIATION
+
+
+J = 2 # number of noise regimes
+M = 3 # number of simulations
+p = 3 # dimension of spline
+k = 30 # number of knots
+n = 200 # number of observations
+a = 0
+b = 1
+knots = seq(a, b, length.out=k)
+lambdas = 10^seq(-11,-3, length.out=50)
+
+## Setup
+# Data storage objects
+xts = ((1:n)-0.05)/n
+yts = f(xts)
+dens_raw_df = data.frame(x=xts, y=yts, j=rep(0, n)) # observations for plotting
+dens_lam_df = data.frame( # best lambda for each simulation 1:M
+    cv=rep(NA, J*M), gcv=rep(NA, J*M), aic=rep(NA, J*M), er=rep(NA, J*M),
+    J=rep(NA, J*M))
+dens_sco_df = data.frame( # score of the corresponding best lambda
+    cv=rep(NA, J*M), gcv=rep(NA, J*M), aic=rep(NA, J*M), er=rep(NA, J*M),
+    J=rep(NA, J*M))
+
+D = diag(c(rep(0, p+1), rep(1, k)))
+
 for(j in 1:J){
 
     for(i in 1:M){
+
+        # variable density Xs
+        xs = qbeta(runif(n), (j+4)/5, (11-j)/5)
+        fxs = f(xs)
+        X1 = outer(xs, 0:p, "^")
+        X2 = outer(xs, knots, ">")*outer(xs, knots, "-")^p # source [2]
+        X = cbind(X1, X2)
+
         # generate observatons
-        Y = fxs + rnorm(n, mean=0, sd=noise_sd(j))
+        Y = fxs + rnorm(n, mean=0, sd=0.1)
 
         # calculate lambda using each method
         cvs = cvv(k=k, l=lambdas, X=X, Y=Y)
@@ -203,33 +387,33 @@ for(j in 1:J){
 
         print(j, i)
         ix = (j-1)*M + i
-        noise_lam_df$J[ix] = j
-        noise_lam_df$cv[ix] = cv_lam
-        noise_lam_df$gcv[ix] = gcv_lam
-        noise_lam_df$aic[ix] = aicc_lam
-        noise_lam_df$er[ix] = er_lam
+        dens_lam_df$J[ix] = j
+        dens_lam_df$cv[ix] = cv_lam
+        dens_lam_df$gcv[ix] = gcv_lam
+        dens_lam_df$aic[ix] = aicc_lam
+        dens_lam_df$er[ix] = er_lam
 
-        noise_sco_df$cv[ix] = bcv
-        noise_sco_df$gcv[ix] = bgcv
-        noise_sco_df$aic[ix] = baicc
-        noise_sco_df$er[ix] = ber
+        dens_sco_df$cv[ix] = bcv
+        dens_sco_df$gcv[ix] = bgcv
+        dens_sco_df$aic[ix] = baicc
+        dens_sco_df$er[ix] = ber
 
     }
 
     # record an example of the observations generated in this noise regime
-    colname = paste("J=", j, sep="")
-    noise_raw_df[colname] = Y
+    tdf = data.frame(x=xs, y=Y, j=rep(j, n)) # observations for plotting
+    dens_raw_df = rbind(dens_raw_df, tdf)
 }
 
-plt_noise_obv = ggplot(data=melt(noise_raw_df, id=c("x", "yt"))) +
-    # geom_line(aes(x=x, y=yt)) +
-    geom_point(aes(x=x, y=value)) +
-    facet_wrap(~variable) +
-    labs(x="X", y="Y", title="Observations with different noise")
+dens_raw_df$j = as.factor(dens_raw_df$j)
+drdf0 = subset(dens_raw_df, j == 0, select=c("x","y"))
+plt_dens_obv = ggplot(data=drdf0) +
+    geom_line(aes(x=x,y=y), color="steelblue") +
+    geom_point(data=subset(dens_raw_df, j != 0), aes(x=x, y=y, color=j)) +
+    facet_wrap(~j)
 
-noise_lam_df_m = melt(noise_lam_df, id=c("J"))
-noise_lam_df_m$J = as.factor(noise_lam_df_m$J)
-
-plt_noise_lams = ggplot(data=noise_lam_df_m) +
+dens_lam_df_m = melt(dens_lam_df, id=c("J"))
+dens_lam_df_m$J = as.factor(dens_lam_df_m$J)
+plt_dens_lams = ggplot(data=dens_lam_df_m) +
     geom_boxplot(aes(x=J, y=value, color=J)) +
     facet_wrap(~variable)
