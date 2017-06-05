@@ -77,6 +77,9 @@ the nonparametric bootstrap I generate samples from the emperical distribution.
 In this section, I perform the parametric bootstrap.
 
 ```{r}
+## Preamble
+set.seed(33)
+
 ## Import external libraries
 library(ggplot2)
 library(latex2exp)
@@ -190,9 +193,105 @@ nonparametric bootstrap is tied strongly to the sample size than the parametric
 bootstrap, but this would require a technical proof to verify.
 
 # Bootstrapping regression coefficients
+In this section, I examine bootstrapping as a method to estimate confidence
+intervals on regression coefficients.
 
 ## Generating observations
+I consider two models and generate $n=512$ observations from each. The first
+model is described by the following algorithm, additional source code found in
+refference $[3]$.
+
+```{r}
+## Import external source
+source("genetic_supplement.R")
+
+## Parameterize
+n = 512
+
+## Generate observations
+x1s = (0:(n-1))/n
+fx1s = model1(x1s)
+y1s = fx1s + noise1(x1s)
+
+## Plot generated observations
+plt_mod1 = ggplot(data=data.frame(x=x1s, y=y1s, f=fx1s)) +
+    geom_point(aes(x=x, y=y), color="steelblue", alpha=0.8) +
+    geom_line(aes(x=x, y=f), color="coral", size=0.75, alpha=0.5) +
+    labs(x="X", y="Y", title="Model 1")
+```
+
+```{r echo=F}
+plt_mod1
+```
+
+The second model is
+$$f(x) = (4x − 2) + 2 e^{−16(4x − 2)^2}$$
+
+```{r}
+## Subroutines
+model2 = function(x){
+    r = (4*x-2) + 2*exp(-16*(4*x-2)^2)
+    return(r)
+}
+
+## Generate observations
+x2s = (0:(n-1))/n
+fx2s = model2(x2s)
+y2s = fx2s + rnorm(n, sd=(fx2s^2/5))
+
+## Plot generated observations
+plt_mod2 = ggplot(data=data.frame(x=x2s, y=y2s, f=fx2s)) +
+    geom_point(aes(x=x, y=y), color="steelblue", alpha=0.8) +
+    geom_line(aes(x=x, y=f), color="coral", size=0.75, alpha=0.5) +
+    labs(x="X", y="Y", title="Model 2")
+```
+
+```{r echo=F}
+plt_mod2
+```
+
+## Genetic algorithm for calculating regression curve estimates
+
+## Bootstrapped 95% confidence bands for regression curves
+
+# Estimating quantile range with the jackknife
+In this section, I use the bootstrap and its predesessor, the jackknife, to
+simulate confidence intervals for $\theta$.
+
+$$
+\theta \triangleq \frac{q_{0.75}-q_{0.25}}{1.34} \quad {\rm for} \quad
+X_1,\dots,X_n \sim {\rm iid} \, t_{df} \quad {\rm using} \quad
+n = 25 \, {\rm and} \, df=3
+$$
+
+```{r}
+q1 = qt(0.75, df=3)
+q0 = qt(0.25, df=3)
+theta = (q1 - q0) / 1.34
+```
+
+The true value of $\theta$ is $\frac{`r q1`-(`r q0`)}{1.34} \approx `r theta`$.
+
+## Generating observations
+```{r}
+## Parameterize
+n = 25
+df = 3
+
+## Generate observations
+xs = rt(n=n, df=df)
+
+## Plot
+plt_ts = ggplot(data=data.frame(x=xs)) +
+    geom_histogram(aes(x=x), color="steelblue", bins=30) +
+    labs(x="X", y="Frequency", title="Histogram of generated observations")
+```
+
+```{r echo=F}
+plt_ts
+```
 
 # Sources
 1. https://en.wikipedia.org/wiki/Order_statistic
 2. https://en.wikipedia.org/wiki/Variance
+3. https://github.com/ekalosak/STA243/blob/master/hw6/genetic_supplement.R
