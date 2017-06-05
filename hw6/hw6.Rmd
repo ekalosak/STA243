@@ -39,5 +39,94 @@ n (F_{X}(x))^{n-1} f_{X}(x) =
 \frac{n}{\theta} (\frac{x}{\theta})^{n-1}
 $$
 
+## Variance of $\hat{\theta}$
+I am interested in finding the variance of the MLE $\hat{\theta}$.
+$$
+{\rm var}(\hat{\theta}) = {\rm E}(\hat{\theta}^2) - {\rm E}(\hat{\theta})^2
+\quad \quad [2]
+$$
+
+$$
+{\rm E}_\theta(\hat{\theta}) = \int_0^\theta x f_{X_{(n)}}(x) dx =
+\int_0^\theta xn \left(\frac{x}{\theta}\right)^{n-1} \frac{1}{\theta} dx =
+\frac{n}{n+1}\theta
+$$
+
+$$
+{\rm E}_\theta(\hat{\theta}^2) = \int_0^\theta x^2 f_{X_{(n)}}(x) dx =
+\int_0^\theta x^2n \left(\frac{x}{\theta}\right)^{n-1} \frac{1}{\theta} dx =
+\frac{n}{n+2}\theta^2
+$$
+
+$$
+{\rm var}(\hat{\theta}) =
+\frac{n}{n+2}\theta^2 - \left(\frac{n}{n+1}\theta\right)^2 =
+n\theta^2\left(\frac{1}{n+2} - \frac{n}{(n+1)^2}\right)
+$$
+
+Let ${\rm Var}_{F_\theta}(\hat{\theta}) \triangleq
+{\rm var}(\hat{\theta})$ as defined above.
+
+## Bootstrapping ${\rm Var}_{F_\theta}(\hat{\theta})$
+In this section, I generate a dataset of size $n = 50$ from the distribution
+$X_i\sim{\rm iid}U(0,3)$ and use it to approximate
+${\rm Var}_{F_\theta}(\hat{\theta})$ using $B=5000$ bootstrap samples.
+
+```{r}
+### BEGIN: Code
+
+## Import external libraries
+library(ggplot2)
+library(latex2exp)
+
+## Parameterize
+n = 50
+t = 3
+B = 5000
+
+## Generate dataset
+xs = runif(n, 0, t)
+
+## Generate bootstrap samples and calculate var(\hat{\theta})
+
+# generate bootstrap
+bs_raw = sample(xs, size=n*B, replace=TRUE)
+bs = matrix(data=bs_raw, nrow=B, ncol=n)
+
+# calculate max of each bootstrap sample
+maxs = apply(bs, 1, max) # 1 means apply to rows, 2 would be columns
+
+# calculate variance of the mle
+var_boot = var(maxs)
+
+## Calculate the analytical variance
+var_anal = n*t^2*(1/(n+2) - n/(n+1)^2)
+
+## Plot variances
+plt_var = ggplot(data=data.frame(x=maxs), aes(x=x)) +
+    geom_histogram(color="steelblue", binwidth=0.05) +
+    geom_vline(aes(xintercept=t), size=0.5, color="coral") +
+    labs(
+        x=TeX("Resampled estimate of $\\hat{\\theta}$"),
+        y="Frequency",
+        title=
+        TeX("Bootstrapping to estimate $Var(\\hat{\\theta})$")
+    )
+
+### END: Code
+```
+
+```{r echo=F}
+plt_var
+```
+  
+The bootstrapped variance of $\hat{\theta}$ is $`r var_boot`$ and the analytical
+variance thereof is $`r var_anal`$.
+The log-ratio of these two values is $`r log(var_boot/var_anal)`$, suggesting
+that the bootstrapped estimate is relatively accurate in this case.
+
+## Nonparametric bootstrapping the same quantity
+
 # Sources
 1. https://en.wikipedia.org/wiki/Order_statistic
+2. https://en.wikipedia.org/wiki/Variance
