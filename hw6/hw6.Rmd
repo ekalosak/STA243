@@ -1,0 +1,43 @@
+---
+title: "STA243 Hw6"
+author:
+- Eric Kalosa-Kenyon
+date: "`r format(Sys.time(), '%d %B %Y')`"
+
+abstract: In this assignment, I examine some basics of bootstrapping.
+
+output:
+  html_document:
+    toc: yes
+---
+
+# Comparison of bootstrap estimate with analytical results
+In this section, I calculate the analytical distribution of a maximum likelihood
+estimator and compare it to bootstrapped estimates thereof.
+
+$$
+X_1,\dots,X_n \sim{\rm iid} U(0,\theta) \implies
+\hat{\theta}_{MLE} = {\rm max}X_i
+$$
+
+## Analytical distribution of $\hat{\theta}$
+Recall that the PDF for order statistics is
+$$
+f_{X_{(k)}}(x)=
+\frac{n!}{(k-1)!(n-k)!} (F_{X}(x))^{k-1}
+(1-F_{X}(x))^{n-k}f_{X}(x)
+\quad \quad {\rm [1]}
+$$
+
+where $F_X(x)=\frac{x}{\theta}$ is the CDF of $X$ and $f_X(x)=\frac{1}{\theta}$
+is the PDF of $X$.
+The MLE $\hat{\theta}=X_{(n)}$ is the maximum, so we are interested in the above
+PDF when $k=n$:
+$$
+f_{X_{(n)}}(x) =
+n (F_{X}(x))^{n-1} f_{X}(x) =
+\frac{n}{\theta} (\frac{x}{\theta})^{n-1}
+$$
+
+# Sources
+1. https://en.wikipedia.org/wiki/Order_statistic
