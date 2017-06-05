@@ -67,14 +67,16 @@ $$
 Let ${\rm Var}_{F_\theta}(\hat{\theta}) \triangleq
 {\rm var}(\hat{\theta})$ as defined above.
 
-## Bootstrapping ${\rm Var}_{F_\theta}(\hat{\theta})$
+## Parametric bootstrapping ${\rm Var}_{F_\theta}(\hat{\theta})$
 In this section, I generate a dataset of size $n = 50$ from the distribution
 $X_i\sim{\rm iid}U(0,3)$ and use it to approximate
-${\rm Var}_{F_\theta}(\hat{\theta})$ using $B=5000$ bootstrap samples.
+${\rm Var}_{F_\theta}(\hat{\theta})$ using $B=5000$ parametric bootstrap
+samples. The difference between parametric and nonparametric bootstrap is that
+in the parametric bootstrap I generate samples from $U(0,\hat{\theta})$ and in
+the nonparametric bootstrap I generate samples from the emperical distribution.
+In this section, I perform the parametric bootstrap.
 
 ```{r}
-### BEGIN: Code
-
 ## Import external libraries
 library(ggplot2)
 library(latex2exp)
@@ -84,48 +86,112 @@ n = 50
 t = 3
 B = 5000
 
-## Generate dataset
+## Generate original dataset
 xs = runif(n, 0, t)
 
-## Generate bootstrap samples and calculate var(\hat{\theta})
+## Generate parametric bootstrap samples and calculate the sample statistic
+## variance
 
-# generate bootstrap
-bs_raw = sample(xs, size=n*B, replace=TRUE)
-bs = matrix(data=bs_raw, nrow=B, ncol=n)
+# generate samples
+that = max(xs)
+bs_param_raw = runif(n*B, 0, that)
+bs_param = matrix(bs_param_raw, nrow=B, ncol=n)
 
-# calculate max of each bootstrap sample
-maxs = apply(bs, 1, max) # 1 means apply to rows, 2 would be columns
+# calculate max of each sample
+maxs_param = apply(bs_param, 1, max) # 1 means apply to rows, 2 would be columns
 
-# calculate variance of the mle
-var_boot = var(maxs)
+# calculate the parametric bootstrapped variance of \hat{\theta}
+var_boot_param = var(maxs_param)
 
 ## Calculate the analytical variance
 var_anal = n*t^2*(1/(n+2) - n/(n+1)^2)
 
-## Plot variances
-plt_var = ggplot(data=data.frame(x=maxs), aes(x=x)) +
+## Plot parametric bootstrap samples
+plt_var_param = ggplot(data=data.frame(x=maxs_param), aes(x=x)) +
     geom_histogram(color="steelblue", binwidth=0.05) +
-    geom_vline(aes(xintercept=t), size=0.5, color="coral") +
+    geom_vline(aes(xintercept=t), size=1.5, color="coral") +
     labs(
         x=TeX("Resampled estimate of $\\hat{\\theta}$"),
         y="Frequency",
         title=
-        TeX("Bootstrapping to estimate $Var(\\hat{\\theta})$")
+        TeX("Parametric bootstrapping to estimate Var($\\hat{\\theta}$)")
+    )
+```
+
+```{r echo=F}
+plt_var_param
+```
+  
+The parametric bootstrapped variance of $\hat{\theta}$ is $`r var_boot_param`$
+and the analytical variance thereof is $`r var_anal`$.
+The log-ratio of these two values is $`r log(var_boot_param/var_anal)`$,
+suggesting that the parametric bootstrapped estimate is relatively accurate in
+this case.
+
+## Nonparametric bootstrapping the same quantity
+In this section, I perform the nonparametric bootstrap to estimate the variance
+of the MLE $\hat{\theta}={\rm max}(\{X_1,\dots,X_n\})$.
+
+```{r}
+## Generate nonparametric bootstrap samples and calculate var(\hat{\theta})
+
+# generate bootstrap
+bs_nonparam_raw = sample(xs, size=n*B, replace=TRUE)
+bs_nonparam = matrix(data=bs_nonparam_raw, nrow=B, ncol=n)
+
+# calculate max of each bootstrap sample
+maxs_nonparam = apply(bs_nonparam, 1, max)
+
+# calculate nonparametric bootstrapped variance of the mle
+var_boot_nonparam = var(maxs_nonparam)
+
+## Plot variances
+plt_var_nonparam = ggplot(data=data.frame(x=maxs_nonparam), aes(x=x)) +
+    geom_histogram(color="steelblue", binwidth=0.05) +
+    geom_vline(aes(xintercept=t), size=1.5, color="coral") +
+    labs(
+        x=TeX("Resampled estimate of $\\hat{\\theta}$"),
+        y="Frequency",
+        title=
+        TeX("Nonparametric bootstrapping to estimate Var($\\hat{\\theta}$)")
     )
 
 ### END: Code
 ```
 
 ```{r echo=F}
-plt_var
+plt_var_nonparam
 ```
   
-The bootstrapped variance of $\hat{\theta}$ is $`r var_boot`$ and the analytical
-variance thereof is $`r var_anal`$.
-The log-ratio of these two values is $`r log(var_boot/var_anal)`$, suggesting
-that the bootstrapped estimate is relatively accurate in this case.
+The nonparametric bootstrapped variance of
+$\hat{\theta}$ is $`r var_boot_nonparam`$ and the analytical variance thereof is
+$`r var_anal`$.  The log-ratio of these two values is
+$`r log(var_boot_nonparam/var_anal)`$, suggesting that the bootstrapped estimate
+is somewhat accurate in this case.
 
-## Nonparametric bootstrapping the same quantity
+## Comparison of parametric and nonparametric bootstrapping
+In the case where $X_i\sim{\rm iid}U(0,\theta)$, parametric bootstrap estimates
+of the the variance of the MLE estimator
+$\hat{\theta} \triangleq {\rm max}(\{X_1,\dots,X_n\})$ are more accurate than
+their nonparametric counterparts.
+
+$$
+\frac{|{\rm Var}_{F_\theta}(\hat{\theta}) - {\rm Var}_{p}(\hat{\theta})|}
+{|{\rm Var}_{F_\theta}(\hat{\theta}) - {\rm Var}_{np}(\hat{\theta})|} =
+\frac{`r abs(var_anal - var_boot_param)`}
+{`r abs(var_anal - var_boot_nonparam)`} \approx
+`r abs(var_anal - var_boot_param)/abs(var_anal - var_boot_nonparam)`
+$$
+That this ratio is less than $1$ provides evidence for the claim that the
+parametric bootstrap is more accurate in this case. At a glance, the
+nonparametric bootstrap appears to underestimate the actual variance of the MLE
+$\hat{\theta}$. One reason for this appears to be that the efficiency of the
+nonparametric bootstrap is tied strongly to the sample size than the parametric
+bootstrap, but this would require a technical proof to verify.
+
+# Bootstrapping regression coefficients
+
+## Generating observations
 
 # Sources
 1. https://en.wikipedia.org/wiki/Order_statistic
