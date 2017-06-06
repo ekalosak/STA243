@@ -251,6 +251,8 @@ plt_mod2
 ```
 
 ## Genetic algorithm for calculating regression curve estimates
+In this section, I use a genetic algorithm to calculate piecewise constant
+regression curves for the two models illustrated in the preceeding section.
 
 ## Bootstrapped 95% confidence bands for regression curves
 
