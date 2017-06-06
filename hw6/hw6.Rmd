@@ -252,7 +252,107 @@ plt_mod2
 
 ## Genetic algorithm for calculating regression curve estimates
 In this section, I use a genetic algorithm to calculate piecewise constant
-regression curves for the two models illustrated in the preceeding section.
+regression curves for the two models illustrated in the preceeding section. All
+genetic source code is contained in refference [3].
+First, I regress for the naturally piecewise constant model using the AIC
+fitness criterion.
+
+```{r warning=FALSE}
+## Parameterize
+G = 30 # generations
+K = 10 # individuals per generation
+Pcross = 0.7 # Crossover rate
+Pmutate = 0.18 # Mutation rate
+Pimmigrate = 0.6 # Rate of new individual introduction into population
+Psex = 0.2 # Rate of sexual vs asexual reproduction
+which_penalty = "AIC" # "AIC" or "MDL"
+
+## Simulate
+pop = genetic_piecewise_regression(y1s,
+                                   G, K,
+                                   Pcross, Pmutate, Pimmigrate, Psex,
+                                   which_penalty)
+
+## Plot results
+genetic_df = data.frame(y=y1s, x=1:n)
+
+if(which_penalty=="AIC"){
+    best_score = min(as.numeric(pop$AIC))
+    which_organism_is_best = sort(
+                            which(as.numeric(pop$AIC) == best_score),
+                            decreasing=T
+                        )[1]
+}else if(which_penalty=="MDL"){
+    best_score = min(as.numeric(pop$MDL))
+    which_organism_is_best = sort(
+                            which(as.numeric(pop$MDL) == best_score),
+                            decreasing=T
+                        )[1]
+}
+best_chromosome = pop$Chromosome[which_organism_is_best]
+plt_best1 = plot_chromosome(best_chromosome, genetic_df, color="coral") +
+    ggtitle(
+        paste(
+            "Chromosome ", which_organism_is_best, " in generation ",
+            pop$Generation[which_organism_is_best],
+            " with ", which_penalty, "=", best_score,
+            sep=""
+        ))
+```
+
+```{r echo=F}
+plt_best1
+```
+  
+Second, I regress the smoother model from the preceeding section using the MDL
+fitness criterion.
+
+```{r warning=FALSE}
+## Parameterize
+G = 30 # generations
+K = 10 # individuals per generation
+Pcross = 0.7 # Crossover rate
+Pmutate = 0.18 # Mutation rate
+Pimmigrate = 0.6 # Rate of new individual introduction into population
+Psex = 0.2 # Rate of sexual vs asexual reproduction
+which_penalty = "MDL" # "AIC" or "MDL"
+
+## Simulate
+pop = genetic_piecewise_regression(y2s,
+                                   G, K,
+                                   Pcross, Pmutate, Pimmigrate, Psex,
+                                   which_penalty)
+
+## Plot results
+genetic_df = data.frame(y=y2s, x=1:n)
+
+if(which_penalty=="AIC"){
+    best_score = min(as.numeric(pop$AIC))
+    which_organism_is_best = sort(
+                            which(as.numeric(pop$AIC) == best_score),
+                            decreasing=T
+                        )[1]
+}else if(which_penalty=="MDL"){
+    best_score = min(as.numeric(pop$MDL))
+    which_organism_is_best = sort(
+                            which(as.numeric(pop$MDL) == best_score),
+                            decreasing=T
+                        )[1]
+}
+best_chromosome = pop$Chromosome[which_organism_is_best]
+plt_best2 = plot_chromosome(best_chromosome, genetic_df, color="coral") +
+    ggtitle(
+        paste(
+            "Chromosome ", which_organism_is_best, " in generation ",
+            pop$Generation[which_organism_is_best],
+            " with ", which_penalty, "=", best_score,
+            sep=""
+        ))
+```
+
+```{r echo=F}
+plt_best2
+```
 
 ## Bootstrapped 95% confidence bands for regression curves
 

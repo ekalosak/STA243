@@ -1,6 +1,8 @@
 ## Supplemental code for homework 6
 # Author: Eric Kalosa-Kenyon
 
+library("dplyr")
+
 model1 = function(x){
     t = c(0.1, 0.13, 0.15, 0.23, 0.25, 0.4, 0.44, 0.65, 0.76, 0.78, 0.81)
     h = c(4, -5, 3, -4, 5, -4.2, 2.1, 4.3, -3.1, 2.1, -4.2)
@@ -15,10 +17,11 @@ noise1 = function(x){
  return(rnorm(length(x))/3)
 }
 
-random_chromosome = function(num_genes, nucleobases=c(0,1), max_non0=30){
+random_chromosome = function(num_genes, nucleobases=c(0,1), non0seed=30){
     # Generates a chromosome
     #   lenght of chromosome is (num_genes)
     #   each element of the chromosome is an element of (nucleobases)
+    max_non0 = max(min(num_genes, rpois(1, non0seed)), non0seed)
     non0 = sample(1:num_genes, max_non0)
     x = rep(nucleobases[1], num_genes)
     x[non0] = sample(nucleobases, max_non0, replace=TRUE)
@@ -115,7 +118,7 @@ calc_AIC = function(n, k, loss){
     #   k and loss can be c() as long as they have the same length
     # Note that this AIC can be alternatively parameterized
 
-    r = 2*k + log(loss)
+    r = sqrt(k/2 + n*log(loss))
     return(r)
 }
 
@@ -186,7 +189,7 @@ plot_chromosome = function(chrom, raw_df, color="blue"){
     fhat_df = data.frame(x=raw_df$x, y=fhat)
 
     plt = ggplot(raw_df, aes(x=x, y=y)) +
-        geom_point() +
+        geom_point(color="steelblue", alpha=0.8) +
         geom_line(data=fhat_df, color=color) +
         xlab("Index") + ylab("Value")
 
@@ -245,4 +248,110 @@ best_score_and_org = function(population, wh_score){
     }
 
     return(list(best_score, which_organism_is_best))
+}
+
+genetic_piecewise_regression = function(ys,
+    G, K, Pcross, Pmutate, Pimmigrate, Psex, which_penalty){
+    # n is num obsv
+    # G is number of generations
+    # K is number of individuals per generation
+    # Pcross is crossover rate
+    # Pmutate is mutation rate
+    # Pimmigrate is the likelihood of introducing a totally new individual
+    # Psex is pr of sexual vs asexual reproduction
+    # which_penalty is "AIC" or "MDL" and determines how fitness is measured
+    #
+    # returns the dataframe with chromosomes, AIC, MDL, and generation
+
+    n = length(ys)
+
+    ## Set up dataframe
+    pop_col_names = c("Chromosome", "AIC", "MDL", "Generation")
+    pop = data.frame(matrix(ncol = 4, nrow = G*K))   # Holds all individuals
+    colnames(pop) = pop_col_names
+
+    ## Initialize first generation
+    g = 1
+    for(i in 1:K){
+        x = random_chromosome(num_genes=n-1) # returns string of 1s and 0s
+        pop$Generation[i] = g
+        pop$Chromosome[i] = x
+    }
+
+    ## Calculate first generation fitness
+    first_generation = pop[pop$Generation == 1 & !is.na(pop$Generation),]
+    first_aic_mdl = fitness(first_generation, y1s)
+    pop[rownames(first_generation),]$AIC = first_aic_mdl[[1]]
+    pop[rownames(first_generation),]$MDL = first_aic_mdl[[2]]
+
+    ## Simulate remaining generations
+    i = K + 1
+    for(g in 2:G){
+        # print(paste("starting on generation", g))
+        parent_generation = pop[pop$Generation == g-1 & !is.na(pop$Generation),]
+
+        # invert AIC and MDL for sampling
+        parent_generation$nAIC =
+            -(parent_generation$AIC - min(parent_generation$AIC))
+        parent_generation$nAIC =
+            parent_generation$nAIC - min(parent_generation$nAIC) + 1.1
+        parent_generation$nMDL =
+            -(parent_generation$MDL - min(parent_generation$MDL))
+        parent_generation$nMDL =
+            parent_generation$nMDL - min(parent_generation$nMDL) + 1.1
+
+        for(k in 1:K){
+            # Sample parents according to AIC or MDL
+            req_sex = (runif(1) < Psex)
+            if(which_penalty == "AIC"){
+                parents = sample_n(parent_generation,
+                                 2,
+                                 replace=req_sex,
+                                 weight=nAIC)
+            } else if(which_penalty == "MDL"){
+                parents = sample_n(parent_generation,
+                                 2,
+                                 replace=req_sex,
+                                 weight=nMDL)
+            }
+
+            parent_chromosomes = parents$Chromosome
+            if(runif(1) > Pimmigrate){
+                child_chromosome = mate_chromosomes(
+                                        parent_chromosomes,
+                                        Pcross,
+                                        Pmutate
+                                    )
+            }else{
+                child_chromosome = random_chromosome(num_genes=n-1)
+            }
+
+            pop$Generation[i] = g
+            pop$Chromosome[i] = child_chromosome
+            i = i + 1
+        }
+
+        ## Calculate fitnesses for the most recent generation
+        child_generation = pop[pop$Generation == g & !is.na(pop$Generation),]
+        child_aic_mdl = fitness(child_generation, y1s)
+        pop[rownames(child_generation),]$AIC = child_aic_mdl[[1]]
+        pop[rownames(child_generation),]$MDL = child_aic_mdl[[2]]
+
+        ## Keep only the best K from the parent and child generations
+        if(which_penalty == "AIC"){
+            ord = order(c(c(parent_generation$AIC), child_aic_mdl[[1]]),
+                        decreasing=FALSE)[1:K]
+        }
+        if(which_penalty == "MDL"){
+            ord = order(c(c(parent_generation$MDL), child_aic_mdl[[2]]),
+                        decreasing=FALSE)[1:K]
+        }
+        child_ixs = (i-K):(i-1)
+        pop[child_ixs,] = pop[ord,]
+        pop$Generation[child_ixs] = g
+        rownames(pop[(i-K):(i-1),]) = as.character(child_ixs)
+
+    }
+
+    return(pop)
 }
