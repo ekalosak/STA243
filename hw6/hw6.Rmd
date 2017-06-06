@@ -201,7 +201,7 @@ I consider two models and generate $n=512$ observations from each. The first
 model is described by the following algorithm, additional source code found in
 refference $[3]$.
 
-```{r}
+```{r warning=FALSE, message=FALSE}
 ## Import external source
 source("genetic_supplement.R")
 
@@ -216,7 +216,7 @@ y1s = fx1s + noise1(x1s)
 ## Plot generated observations
 plt_mod1 = ggplot(data=data.frame(x=x1s, y=y1s, f=fx1s)) +
     geom_point(aes(x=x, y=y), color="steelblue", alpha=0.8) +
-    geom_line(aes(x=x, y=f), color="coral", size=0.75, alpha=0.5) +
+    geom_line(aes(x=x, y=f), color="darkorange1", size=1.1, alpha=0.5) +
     labs(x="X", y="Y", title="Model 1")
 ```
 
@@ -242,7 +242,7 @@ y2s = fx2s + rnorm(n, sd=(fx2s^2/5))
 ## Plot generated observations
 plt_mod2 = ggplot(data=data.frame(x=x2s, y=y2s, f=fx2s)) +
     geom_point(aes(x=x, y=y), color="steelblue", alpha=0.8) +
-    geom_line(aes(x=x, y=f), color="coral", size=0.75, alpha=0.5) +
+    geom_line(aes(x=x, y=f), color="darkorchid", size=1.1, alpha=0.5) +
     labs(x="X", y="Y", title="Model 2")
 ```
 
@@ -265,37 +265,26 @@ Pcross = 0.7 # Crossover rate
 Pmutate = 0.08 # Mutation rate
 Pimmigrate = 0.3 # Rate of new individual introduction into population
 Psex = 0.4 # Rate of sexual vs asexual reproduction
-which_penalty = "AIC" # "AIC" or "MDL"
+which_penalty1 = "AIC" # "AIC" or "MDL"
 
 ## Simulate
-pop = genetic_piecewise_regression(y1s,
-                                   G, K,
+pop1 = genetic_piecewise_regression(y1s, G, K,
                                    Pcross, Pmutate, Pimmigrate, Psex,
-                                   which_penalty)
+                                   which_penalty1)
 
 ## Plot results
-genetic_df = data.frame(y=y1s, x=1:n)
+plot_df1 = data.frame(y=y1s, x=1:n)
 
-if(which_penalty=="AIC"){
-    best_score = min(as.numeric(pop$AIC))
-    which_organism_is_best = sort(
-                            which(as.numeric(pop$AIC) == best_score),
-                            decreasing=T
-                        )[1]
-}else if(which_penalty=="MDL"){
-    best_score = min(as.numeric(pop$MDL))
-    which_organism_is_best = sort(
-                            which(as.numeric(pop$MDL) == best_score),
-                            decreasing=T
-                        )[1]
-}
-best_chromosome = pop$Chromosome[which_organism_is_best]
-plt_best1 = plot_chromosome(best_chromosome, genetic_df, color="coral") +
+best_organism1 = get_best_org(pop1, which_penalty1)
+best_score1 = best_organism1$AIC # NOTE: use an if/else block here
+best_chromosome1 = best_organism1$Chromosome
+
+plt_best1 = plot_chromosome(best_chromosome1, plot_df1, color="olivedrab") +
     ggtitle(
         paste(
-            "Chromosome ", which_organism_is_best, " in generation ",
-            pop$Generation[which_organism_is_best],
-            " with ", which_penalty, "=", best_score,
+            "Chromosome ", rownames(best_organism1), " in generation ",
+            best_organism1$Generation,
+            " with ", which_penalty1, "=", best_score1,
             sep=""
         ))
 ```
@@ -315,37 +304,26 @@ Pcross = 0.7 # Crossover rate
 Pmutate = 0.18 # Mutation rate
 Pimmigrate = 0.6 # Rate of new individual introduction into population
 Psex = 0.2 # Rate of sexual vs asexual reproduction
-which_penalty = "MDL" # "AIC" or "MDL"
+which_penalty2 = "MDL" # "AIC" or "MDL"
 
 ## Simulate
-pop = genetic_piecewise_regression(y2s,
-                                   G, K,
+pop2 = genetic_piecewise_regression(y2s, G, K,
                                    Pcross, Pmutate, Pimmigrate, Psex,
-                                   which_penalty)
+                                   which_penalty2)
 
 ## Plot results
-genetic_df = data.frame(y=y2s, x=1:n)
+plot_df2 = data.frame(y=y2s, x=1:n)
 
-if(which_penalty=="AIC"){
-    best_score = min(as.numeric(pop$AIC))
-    which_organism_is_best = sort(
-                            which(as.numeric(pop$AIC) == best_score),
-                            decreasing=T
-                        )[1]
-}else if(which_penalty=="MDL"){
-    best_score = min(as.numeric(pop$MDL))
-    which_organism_is_best = sort(
-                            which(as.numeric(pop$MDL) == best_score),
-                            decreasing=T
-                        )[1]
-}
-best_chromosome = pop$Chromosome[which_organism_is_best]
-plt_best2 = plot_chromosome(best_chromosome, genetic_df, color="coral") +
+best_organism2 = get_best_org(pop2, which_penalty2)
+best_score2 = best_organism2$AIC # NOTE: use an if/else block here
+best_chromosome2 = best_organism2$Chromosome
+
+plt_best2 = plot_chromosome(best_chromosome2, plot_df2, color="tomato1") +
     ggtitle(
         paste(
-            "Chromosome ", which_organism_is_best, " in generation ",
-            pop$Generation[which_organism_is_best],
-            " with ", which_penalty, "=", best_score,
+            "Chromosome ", rownames(best_organism2), " in generation ",
+            best_organism2$Generation,
+            " with ", which_penalty2, "=", best_score2,
             sep=""
         ))
 ```
@@ -355,6 +333,123 @@ plt_best2
 ```
 
 ## Bootstrapped 95% confidence bands for regression curves
+### Bootstrapping residuals
+Here I construct 95% pointwise confidence bands for both curves using residual
+bootstrapping. First, I'll bootstrap the residuals of the naturally piecewise
+constant function
+
+```{r}
+# get residuals
+# for each boot
+#   sample n residuals w repl
+#   add these to regressed y
+#   use this new sample to compute another regression
+#   record regressed values at each point
+#   these serve as the emperical distribution for each point
+
+## Parameterize
+B = 10 # number of bootstraps
+
+bootstrap_residuals = function(B, best_chromosome, ys, which_penalty){
+
+    ## Recover residuals
+    yhats = regress_chromosome(best_chromosome, ys)
+    res = ys - yhats
+
+    ## Bootstrap residuals
+    n = length(ys)
+    point_ests = data.frame(matrix(nrow=B, ncol=n))
+    for(b in 1:B){
+        # get residuals and make y* = y + e*
+        boot_resid = base::sample(res, n)
+        boot_ys = ys + boot_resid
+        # refit the model i.e. run another genetic simulation
+        boot_pop = genetic_piecewise_regression(boot_ys,
+            G, K, Pcross, Pmutate, Pimmigrate, Psex, which_penalty)
+        boot_best_org = get_best_org(boot_pop, which_penalty)
+        boot_best_chrom = boot_best_org$Chromosome
+        boot_yhats = regress_chromosome(boot_best_chrom, boot_ys)
+        # record the fitted values
+        point_ests[b,] = boot_yhats
+    }
+
+    return(point_ests)
+}
+
+## Recover the bootstrapped pointwise quantiles
+point_ests1 = bootstrap_residuals(B, best_chromosome1, y1s, which_penalty1)
+y1hats = regress_chromosome(best_chromosome1, y1s)
+boot_quantiles1 = sapply(
+        point_ests1,
+        (function(x) quantile(x, probs=c(0.025, 0.975)))
+    )
+
+## Plot the pointwise confidence intervals
+df_95c_resid1 = data.frame(cbind(t(boot_quantiles1), y1hats, y1s, x1s))
+colnames(df_95c_resid1) = c("low", "up", "y", "yt", "x")
+
+plt_boot_resid1 = ggplot(data=df_95c_resid1) +
+    geom_ribbon(aes(x=x, ymin=low, ymax=up),
+                color="steelblue", alpha=0.6) +
+    geom_line(aes(x=x, y=y), color="olivedrab", size=1.1) +
+    geom_point(aes(x=x, y=yt),
+               color="steelblue", alpha=0.5, size=0.8) +
+    geom_line(data=data.frame(x=x1s, y=fx1s),
+              aes(x=x, y=y), color="darkorange1", size=1.1) +
+    labs(x="x", y="y", title="Residual bootstrapped 95% confidence band")
+```
+
+```{r echo=F}
+plt_boot_resid1
+```
+  
+The 95% confidence bands are very tight around the jumps. This is a particularly
+impressive quality of this bootstrapped confidence band.
+
+Next, I perform the residual bootstrap on the smooth model to obtain a pointwise
+95% confidence band.
+
+```{r}
+## Parameterize
+B = 10 # number of bootstraps
+
+## Recover the bootstrapped pointwise quantiles
+point_ests2 = bootstrap_residuals(B, best_chromosome2, y2s, which_penalty2)
+y2hats = regress_chromosome(best_chromosome2, y2s)
+boot_quantiles2 = sapply(
+        point_ests2,
+        (function(x) quantile(x, probs=c(0.025, 0.975)))
+    )
+
+## Plot the pointwise confidence intervals
+df_95c_resid2 = data.frame(cbind(t(boot_quantiles2), y2hats, y2s, x2s))
+colnames(df_95c_resid2) = c("low", "up", "y", "yt", "x")
+plt_boot_resid2 = ggplot(data=df_95c_resid2) +
+    geom_ribbon(aes(x=x, ymin=low, ymax=up),
+                color="steelblue", alpha=0.6) +
+    geom_line(aes(x=x, y=y), color="tomato1", size=1.1) +
+    geom_point(aes(x=x, y=yt),
+               color="steelblue", alpha=0.5, size=0.8) +
+    geom_line(data=data.frame(x=x2s, y=fx2s),
+              aes(x=x, y=y), color="darkorchid", size=1.1) +
+    labs(x="x", y="y", title="Residual bootstrapped 95% confidence band")
+```
+
+```{r echo=F}
+plt_boot_resid2
+```
+
+### Bootstrapping pairs
+In this section, I perform different kind of bootstrapping to estimate the
+pointwise 95% confidence band for both models. This second bootstrapping method
+is much more straightforward: I simply resample the raw observations and use
+them to fit new curves whose fitted values serve as my pointwise emperical
+estimates. I use the pointwise estimates as quantiles to estimate a 95%
+confidence band.
+
+```{r}
+foo = "bar"
+```
 
 # Estimating quantile range with the jackknife
 In this section, I use the bootstrap and its predesessor, the jackknife, to
@@ -397,3 +492,4 @@ plt_ts
 1. https://en.wikipedia.org/wiki/Order_statistic
 2. https://en.wikipedia.org/wiki/Variance
 3. https://github.com/ekalosak/STA243/blob/master/hw6/genetic_supplement.R
+4. https://en.wikipedia.org/wiki/Bootstrapping_(statistics)#Resampling_residuals

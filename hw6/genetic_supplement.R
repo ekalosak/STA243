@@ -355,3 +355,19 @@ genetic_piecewise_regression = function(ys,
 
     return(pop)
 }
+
+get_best_org = function(pop, which_penalty){
+    # given the population data.frame and which penalty you care about,
+    # returns the organism with the lowest such score
+    if(which_penalty=="AIC"){
+        best_score = min(as.numeric(pop$AIC))
+        which_organism_is_best = which(as.numeric(pop$AIC) == best_score)
+    }else if(which_penalty=="MDL"){
+        best_score = min(as.numeric(pop$MDL))
+        which_organism_is_best = which(as.numeric(pop$MDL) == best_score)
+    }
+    which_organism_is_best = sort(which_organism_is_best, decreasing=T)[1]
+    best_chromosome = pop$Chromosome[which_organism_is_best]
+    best_organism = pop[which_organism_is_best,]
+    return(best_organism)
+}
