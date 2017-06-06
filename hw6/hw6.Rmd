@@ -111,8 +111,8 @@ var_anal = n*t^2*(1/(n+2) - n/(n+1)^2)
 
 ## Plot parametric bootstrap samples
 plt_var_param = ggplot(data=data.frame(x=maxs_param), aes(x=x)) +
-    geom_histogram(color="steelblue", binwidth=0.05) +
-    geom_vline(aes(xintercept=t), size=1.5, color="coral") +
+    geom_histogram(color="steelblue", binwidth=0.025) +
+    # geom_vline(aes(xintercept=t), size=1.5, color="coral") +
     labs(
         x=TeX("Resampled estimate of $\\hat{\\theta}$"),
         y="Frequency",
@@ -150,8 +150,8 @@ var_boot_nonparam = var(maxs_nonparam)
 
 ## Plot variances
 plt_var_nonparam = ggplot(data=data.frame(x=maxs_nonparam), aes(x=x)) +
-    geom_histogram(color="steelblue", binwidth=0.05) +
-    geom_vline(aes(xintercept=t), size=1.5, color="coral") +
+    geom_histogram(color="steelblue", binwidth=0.025) +
+    # geom_vline(aes(xintercept=t), size=1.5, color="coral") +
     labs(
         x=TeX("Resampled estimate of $\\hat{\\theta}$"),
         y="Frequency",
