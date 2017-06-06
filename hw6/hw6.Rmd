@@ -268,7 +268,7 @@ Psex = 0.4 # Rate of sexual vs asexual reproduction
 which_penalty1 = "AIC" # "AIC" or "MDL"
 
 ## Simulate
-pop1 = genetic_piecewise_regression(y1s, G, K,
+pop1 = genetic_piecewise_regression(y1s, x1s, G, K,
                                    Pcross, Pmutate, Pimmigrate, Psex,
                                    which_penalty1)
 
@@ -307,7 +307,7 @@ Psex = 0.2 # Rate of sexual vs asexual reproduction
 which_penalty2 = "MDL" # "AIC" or "MDL"
 
 ## Simulate
-pop2 = genetic_piecewise_regression(y2s, G, K,
+pop2 = genetic_piecewise_regression(y2s, x1s, G, K,
                                    Pcross, Pmutate, Pimmigrate, Psex,
                                    which_penalty2)
 
@@ -350,10 +350,10 @@ constant function
 ## Parameterize
 B = 10 # number of bootstraps
 
-bootstrap_residuals = function(B, best_chromosome, ys, which_penalty){
+bootstrap_residuals = function(B, best_chromosome, ys, xs, which_penalty){
 
     ## Recover residuals
-    yhats = regress_chromosome(best_chromosome, ys)
+    yhats = regress_chromosome(best_chromosome, ys, xs)
     res = ys - yhats
 
     ## Bootstrap residuals
@@ -364,11 +364,11 @@ bootstrap_residuals = function(B, best_chromosome, ys, which_penalty){
         boot_resid = base::sample(res, n)
         boot_ys = ys + boot_resid
         # refit the model i.e. run another genetic simulation
-        boot_pop = genetic_piecewise_regression(boot_ys,
+        boot_pop = genetic_piecewise_regression(boot_ys, xs,
             G, K, Pcross, Pmutate, Pimmigrate, Psex, which_penalty)
         boot_best_org = get_best_org(boot_pop, which_penalty)
         boot_best_chrom = boot_best_org$Chromosome
-        boot_yhats = regress_chromosome(boot_best_chrom, boot_ys)
+        boot_yhats = regress_chromosome(boot_best_chrom, boot_ys, xs)
         # record the fitted values
         point_ests[b,] = boot_yhats
     }
@@ -377,8 +377,8 @@ bootstrap_residuals = function(B, best_chromosome, ys, which_penalty){
 }
 
 ## Recover the bootstrapped pointwise quantiles
-point_ests1 = bootstrap_residuals(B, best_chromosome1, y1s, which_penalty1)
-y1hats = regress_chromosome(best_chromosome1, y1s)
+point_ests1 = bootstrap_residuals(B, best_chromosome1, y1s, x1s, which_penalty1)
+y1hats = regress_chromosome(best_chromosome1, y1s, x1s)
 boot_quantiles1 = sapply(
         point_ests1,
         (function(x) quantile(x, probs=c(0.025, 0.975)))
@@ -414,8 +414,8 @@ Next, I perform the residual bootstrap on the smooth model to obtain a pointwise
 B = 10 # number of bootstraps
 
 ## Recover the bootstrapped pointwise quantiles
-point_ests2 = bootstrap_residuals(B, best_chromosome2, y2s, which_penalty2)
-y2hats = regress_chromosome(best_chromosome2, y2s)
+point_ests2 = bootstrap_residuals(B, best_chromosome2, y2s, x2s, which_penalty2)
+y2hats = regress_chromosome(best_chromosome2, y2s, x1s)
 boot_quantiles2 = sapply(
         point_ests2,
         (function(x) quantile(x, probs=c(0.025, 0.975)))
@@ -448,7 +448,66 @@ estimates. I use the pointwise estimates as quantiles to estimate a 95%
 confidence band.
 
 ```{r}
-foo = "bar"
+# get xs and ys
+# for each boot
+#   sample n (x,y) pairs
+#   use this new sample to compute another regression
+#   record regressed values at each point
+#   these serve as the emperical distribution for each point
+
+## Parameterize
+B = 10 # number of bootstraps
+
+bootstrap_pairs = function(B, best_chromosome, ys, xs, which_penalty){
+
+    yhats = regress_chromosome(best_chromosome, ys, xs)
+
+    ## Bootstrap pairs
+    n = length(ys)
+    point_ests = data.frame(matrix(nrow=B, ncol=n))
+    for(b in 1:B){
+        # sample n pairs of xs and ys
+        boot_ixs = sample(x=1:n, size=n, replace=T)
+        boot_ys = ys[boot_ixs]
+        boot_xs = xs[boot_ixs]
+        # regress to these sampled pairs using genetic algorithm p.w-constant
+        boot_pop = genetic_piecewise_regression(boot_ys, boot_xs,
+            G, K, Pcross, Pmutate, Pimmigrate, Psex, which_penalty)
+        boot_best_org = get_best_org(boot_pop, which_penalty)
+        boot_best_chrom = boot_best_org$Chromosome
+        # calculate and record the regression estimates
+        boot_yhats = regress_chromosome(boot_best_chrom, boot_ys, boot_xs)
+        point_ests[b,] = boot_yhats
+    }
+
+    return(point_ests)
+}
+
+## Recover the bootstrapped pointwise quantiles
+point_ests1 = bootstrap_pairs(B, best_chromosome1, y1s, x1s, which_penalty1)
+y1hats = regress_chromosome(best_chromosome1, y1s, x1s)
+boot_quantiles1 = sapply(
+        point_ests1,
+        (function(x) quantile(x, probs=c(0.025, 0.975)))
+    )
+
+## Plot the pointwise confidence intervals
+df_95c_pair1 = data.frame(cbind(t(boot_quantiles1), y1hats, y1s, x1s))
+colnames(df_95c_pair1) = c("low", "up", "y", "yt", "x")
+
+plt_boot_pair1 = ggplot(data=df_95c_pair1) +
+    geom_ribbon(aes(x=x, ymin=low, ymax=up),
+                color="steelblue", alpha=0.6) +
+    geom_line(aes(x=x, y=y), color="gold", size=1.1) +
+    geom_point(aes(x=x, y=yt),
+               color="steelblue", alpha=0.5, size=0.8) +
+    geom_line(data=data.frame(x=x1s, y=fx1s),
+              aes(x=x, y=y), color="darkorange1", size=1.1) +
+    labs(x="x", y="y", title="Pair bootstrapped 95% confidence band")
+```
+
+```{r echo=F}
+plt_boot_pair1
 ```
 
 ## Pseudocode for estimating jump point locations

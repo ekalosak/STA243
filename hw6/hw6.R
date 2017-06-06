@@ -38,7 +38,7 @@ Pimmigrate = 0.2
 Psex = 0.7
 which_penalty = "AIC" # "AIC" or "MDL"
 
-pop = genetic_piecewise_regression(y1s,
+pop = genetic_piecewise_regression(y1s, x1s,
     G, K, Pcross, Pmutate, Pimmigrate, Psex, which_penalty)
 
 ## Plot some results
@@ -103,23 +103,30 @@ plt_best = plot_chromosome(best_chromosome, genetic_df, color="coral") +
 #   yhat = regress against x1s
 #   use these yhat as pointwise quantil
 
-B = 10
-y1hats = regress_chromosome(best_chromosome, y1s)
+B = 50
 point_ests1 = data.frame(matrix(nrow=B, ncol=n))
 for(b in 1:B){
     print(paste(b, "bootstrap"))
     boot_ixs = sample(x=1:n, size=n, replace=T)
     boot_ys1 = y1s[boot_ixs]
-    boot_pop = genetic_piecewise_regression(boot_ys1,
+    boot_xs1 = x1s[boot_ixs]
+    boot_pop = genetic_piecewise_regression(boot_ys1, boot_xs1,
         G, K, Pcross, Pmutate, Pimmigrate, Psex, which_penalty)
     boot_best_org = get_best_org(boot_pop, which_penalty)
     boot_best_chrom = boot_best_org$Chromosome
-    boot_y1hats = regress_chromosome(boot_best_chrom, boot_ys1)
+    boot_y1hats = regress_chromosome(boot_best_chrom, boot_ys1, boot_xs1)
     point_ests1[b,] = boot_y1hats
 }
 # Plot a band around the original bootstrap using the outer quantiles of the
 # point_ests1
 boot_quantiles1 = sapply(
         point_ests1,
-        (function(x) quantile(x, probs=c(0.025, 0.975)))
+        (function(x) quantile(x, probs=c(0.1, 0.9)))
     )
+
+# plot it all
+y1hats = regress_chromosome(best_chromosome, y1s, x1s)
+df_95c_pair = data.frame(cbind(t(boot_quantiles1), y1hats, x1s))
+colnames(df_95c_pair) = c("low", "up", "y", "x")
+plt_boot_pair = ggplot(data=df_95c_pair) +
+    geom_ribbon(aes(x=x, ymin=low, ymax=up))

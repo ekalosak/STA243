@@ -72,14 +72,15 @@ regression_loss = function(reg, raw){
     return(sum((reg-raw)^2))
 }
 
-regress_chromosome = function(chrom, raw){
+regress_chromosome = function(chrom, ys, xs){
     # return c(fhat(x))
     # chrom is a string of "0001110101.."
     # raw is a c(num), len(chrom) == len(raw) - 1
 
     # Initialize working objects
-    segment_observations = c(raw[1])
     regression = c()
+    dummy_xs = ((1:(nchar(chrom)+1))-1)/(nchar(chrom)+1)*max(xs) + min(xs)
+    prev_seg_end = dummy_xs[1]
 
     for(i in 1:nchar(chrom)){ # for each gene in the chromosome
         g = as.integer(substr(chrom, i, i)) # extract the gene from the string
@@ -87,26 +88,31 @@ regress_chromosome = function(chrom, raw){
         if(g){ # if the gene indicates a breakpoint
             # calculate the regression for that segment
 
+            rel_xs_ixs = (xs >= prev_seg_end & xs < dummy_xs[i+1])
+            relevant_xs = xs[rel_xs_ixs]
+            relevant_ys = ys[rel_xs_ixs]
             regression = c(regression,
-                           rep(mean(segment_observations),
-                               length(segment_observations)
+                           rep(mean(relevant_ys),
+                               length(relevant_ys)
                                )
                            )
-            segment_observations = c(raw[i+1]) # reset to next segment
-
-        }else{ # if the gene does not indicate a breakpoint
-            # extend the segment
-            segment_observations = c(segment_observations, raw[i+1])
+            prev_seg_end = dummy_xs[i+1]
         }
     }
 
     # calculate final segment regression
+    rel_xs_ixs = (xs >= prev_seg_end)
+    relevant_xs = xs[rel_xs_ixs]
+    relevant_ys = ys[rel_xs_ixs]
     regression = c(regression,
-                   rep(mean(segment_observations),
-                       length(segment_observations)
+                   rep(mean(relevant_ys),
+                       length(relevant_ys)
                        )
                    )
 
+    if(!(length(regression) == length(dummy_xs))){
+        browser()
+    }
     return(regression)
 }
 
@@ -135,7 +141,7 @@ count_params = function(vec_of_chromosomes){
     return(r)
 }
 
-fitness = function(population, raw){
+fitness = function(population, ys, xs){
     # Calculate fitness for each individual in the population relative to the
     #   raw data.
     #   Complexity is either "AIC" or "MDL". Raw is the raw data to fit.
@@ -143,18 +149,19 @@ fitness = function(population, raw){
     #   The AIC and MDL are normalized to [0,1]
 
     # Check that input is ok
-    stopifnot(nchar(population$Chromosomes[1]) + 1 == length(raw))
+    stopifnot(nchar(population$Chromosomes[1]) + 1 == length(ys))
+    stopifnot(length(xs) == length(ys))
 
     # Initialize parameters
     losses = c()
     K = dim(population)[1]  # (K) is number of individuals in population
-    n = length(raw) # (n) is the number of data observations
+    n = length(ys) # (n) is the number of data observations
 
     # Calculate losses for each individual in the generation
     for(k in 1:K){
-        x = population$Chromosome[k] # extract a chromosome
-        regr = regress_chromosome(x, raw) # calculate the regression
-        loss = regression_loss(regr, raw) # and calculate the loss
+        chrom = population$Chromosome[k] # extract a chromosome
+        regr = regress_chromosome(chrom, ys, xs) # calculate the regression
+        loss = regression_loss(regr, ys) # and calculate the loss
         losses = c(losses, loss) # record that individual's loss
     }
 
@@ -185,12 +192,12 @@ fitness = function(population, raw){
 plot_chromosome = function(chrom, raw_df, color="blue"){
     # return a ggplot object with piecewise constants plotted on the scatter
 
-    fhat = regress_chromosome(chrom, raw_df$y)
+    fhat = regress_chromosome(chrom, raw_df$y, raw_df$x)
     fhat_df = data.frame(x=raw_df$x, y=fhat)
 
     plt = ggplot(raw_df, aes(x=x, y=y)) +
         geom_point(color="steelblue", alpha=0.8) +
-        geom_line(data=fhat_df, color=color) +
+        geom_line(data=fhat_df, color=color, size=1.1) +
         xlab("Index") + ylab("Value")
 
     return(plt)
@@ -214,7 +221,7 @@ plot_generation = function(gen, raw_df, wh_score="AIC"){
     colnames(fhat_df) = c("x","y","Group","AIC","MDL")
     for(i in 1:dim(gen)[1]){
         chrom = gen$Chromosome[i]
-        fhat = regress_chromosome(chrom, raw_df$y)
+        fhat = regress_chromosome(chrom, raw_df$y, raw_df$x)
         fhat_df_i = data.frame(x=raw_df$x, y=fhat)
         fhat_df_i$Group = i
         fhat_df_i$AIC = as.numeric(gen$AIC[i])
@@ -250,7 +257,7 @@ best_score_and_org = function(population, wh_score){
     return(list(best_score, which_organism_is_best))
 }
 
-genetic_piecewise_regression = function(ys,
+genetic_piecewise_regression = function(ys, xs,
     G, K, Pcross, Pmutate, Pimmigrate, Psex, which_penalty){
     # n is num obsv
     # G is number of generations
@@ -280,7 +287,7 @@ genetic_piecewise_regression = function(ys,
 
     ## Calculate first generation fitness
     first_generation = pop[pop$Generation == 1 & !is.na(pop$Generation),]
-    first_aic_mdl = fitness(first_generation, y1s)
+    first_aic_mdl = fitness(first_generation, ys, xs)
     pop[rownames(first_generation),]$AIC = first_aic_mdl[[1]]
     pop[rownames(first_generation),]$MDL = first_aic_mdl[[2]]
 
@@ -333,7 +340,7 @@ genetic_piecewise_regression = function(ys,
 
         ## Calculate fitnesses for the most recent generation
         child_generation = pop[pop$Generation == g & !is.na(pop$Generation),]
-        child_aic_mdl = fitness(child_generation, y1s)
+        child_aic_mdl = fitness(child_generation, ys, xs)
         pop[rownames(child_generation),]$AIC = child_aic_mdl[[1]]
         pop[rownames(child_generation),]$MDL = child_aic_mdl[[2]]
 
