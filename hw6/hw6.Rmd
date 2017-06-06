@@ -279,7 +279,7 @@ best_organism1 = get_best_org(pop1, which_penalty1)
 best_score1 = best_organism1$AIC # NOTE: use an if/else block here
 best_chromosome1 = best_organism1$Chromosome
 
-plt_best1 = plot_chromosome(best_chromosome1, plot_df1, color="olivedrab") +
+plt_best1 = plot_chromosome(best_chromosome1, plot_df1, color="gold") +
     ggtitle(
         paste(
             "Chromosome ", rownames(best_organism1), " in generation ",
@@ -391,7 +391,7 @@ colnames(df_95c_resid1) = c("low", "up", "y", "yt", "x")
 plt_boot_resid1 = ggplot(data=df_95c_resid1) +
     geom_ribbon(aes(x=x, ymin=low, ymax=up),
                 color="steelblue", alpha=0.6) +
-    geom_line(aes(x=x, y=y), color="olivedrab", size=1.1) +
+    geom_line(aes(x=x, y=y), color="gold", size=1.1) +
     geom_point(aes(x=x, y=yt),
                color="steelblue", alpha=0.5, size=0.8) +
     geom_line(data=data.frame(x=x1s, y=fx1s),
@@ -449,6 +449,18 @@ confidence band.
 
 ```{r}
 foo = "bar"
+```
+
+## Pseudocode for estimating jump point locations
+As the reader may observe, there are severe discontinuities in one of the models
+considered in this presentation. These are indeed points of interest and here I
+provide the outline of an algorithm that uses bootstrapping to detect the
+locations of these jump points.
+
+```
+Algorithm: Bootstrapped Jump Point Detection
+In: X = (X1, .., XN); Y = (Y1, .., YN)
+Out: C = (Xc1, .., XcK)
 ```
 
 # Estimating quantile range with the jackknife
