@@ -118,7 +118,7 @@ calc_AIC = function(n, k, loss){
     #   k and loss can be c() as long as they have the same length
     # Note that this AIC can be alternatively parameterized
 
-    r = sqrt(k/2 + n*log(loss))
+    r = k/2 + n*log(loss)
     return(r)
 }
 

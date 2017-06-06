@@ -262,9 +262,9 @@ fitness criterion.
 G = 30 # generations
 K = 10 # individuals per generation
 Pcross = 0.7 # Crossover rate
-Pmutate = 0.18 # Mutation rate
-Pimmigrate = 0.6 # Rate of new individual introduction into population
-Psex = 0.2 # Rate of sexual vs asexual reproduction
+Pmutate = 0.08 # Mutation rate
+Pimmigrate = 0.3 # Rate of new individual introduction into population
+Psex = 0.4 # Rate of sexual vs asexual reproduction
 which_penalty = "AIC" # "AIC" or "MDL"
 
 ## Simulate
