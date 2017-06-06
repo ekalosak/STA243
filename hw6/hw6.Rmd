@@ -510,6 +510,45 @@ plt_boot_pair1 = ggplot(data=df_95c_pair1) +
 plt_boot_pair1
 ```
 
+With a similar number of bootstrap samples, this confidence band is clearly less
+tight than the previously exhibited residual bootstrap for the same purpose.
+
+Next, I examine the pair bootstrap on the smooth model.
+
+```{r}
+## Parameterize
+B = 10 # number of bootstraps
+
+## Recover the bootstrapped pointwise quantiles
+point_ests2 = bootstrap_pairs(B, best_chromosome2, y2s, x2s, which_penalty2)
+y2hats = regress_chromosome(best_chromosome2, y2s, x2s)
+boot_quantiles2 = sapply(
+        point_ests2,
+        (function(x) quantile(x, probs=c(0.025, 0.975)))
+    )
+
+## Plot the pointwise confidence intervals
+df_95c_pair2 = data.frame(cbind(t(boot_quantiles2), y2hats, y2s, x2s))
+colnames(df_95c_pair2) = c("low", "up", "y", "yt", "x")
+
+plt_boot_pair2 = ggplot(data=df_95c_pair2) +
+    geom_ribbon(aes(x=x, ymin=low, ymax=up),
+                color="steelblue", alpha=0.6) +
+    geom_line(aes(x=x, y=y), color="tomato1", size=1.1) +
+    geom_point(aes(x=x, y=yt),
+               color="steelblue", alpha=0.5, size=0.8) +
+    geom_line(data=data.frame(x=x2s, y=fx2s),
+              aes(x=x, y=y), color="darkorchid", size=1.1) +
+    labs(x="x", y="y", title="Pair bootstrapped 95% confidence band")
+```
+
+```{r echo=F}
+plt_boot_pair2
+```
+  
+It looks like the pair bootstrap performs worse on both models when compared to
+the residual bootstrap.
+
 ## Pseudocode for estimating jump point locations
 As the reader may observe, there are severe discontinuities in one of the models
 considered in this presentation. These are indeed points of interest and here I
@@ -518,8 +557,27 @@ locations of these jump points.
 
 ```
 Algorithm: Bootstrapped Jump Point Detection
-In: X = (X1, .., XN); Y = (Y1, .., YN)
+In: X = (X1, .., XN); Y = (Y1, .., YN); B
 Out: C = (Xc1, .., XcK)
+
+mod = calculate regression model Y ~ X
+yh = predict model output over X
+res = calculate residuals using Y and yh
+n =  the number of observations
+
+mods = empty list
+for b in 1:B do
+    boot_res = sample n residuals with replacement
+    boot_Y = Y + boot_res
+    boot_mod = calculate regression model boot_Y ~ X
+    append boot_mod to mods
+
+pr_jump = empty vector of length n-1 i.e. the length of the regression model
+for i in 1:length(mod) do
+    pr_jump[i] = the proportion of bootstrapped models in mods that indicate a
+                jump at position i
+
+plot pr_jump
 ```
 
 # Estimating quantile range with the jackknife
