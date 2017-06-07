@@ -202,10 +202,6 @@ model is described by the following algorithm, additional source code found in
 refference $[3]$.
 
 ```{r warning=FALSE, message=FALSE}
-foo = "bar"
-```
-
-```
 ## Import external source
 source("genetic_supplement.R")
 
@@ -225,10 +221,6 @@ plt_mod1 = ggplot(data=data.frame(x=x1s, y=y1s, f=fx1s)) +
 ```
 
 ```{r echo=F}
-foo = "bar"
-```
-
-```
 plt_mod1
 ```
 
@@ -236,10 +228,6 @@ The second model is
 $$f(x) = (4x − 2) + 2 e^{−16(4x − 2)^2}$$
 
 ```{r}
-foo = "bar"
-```
-
-```
 ## Subroutines
 model2 = function(x){
     r = (4*x-2) + 2*exp(-16*(4*x-2)^2)
@@ -259,10 +247,6 @@ plt_mod2 = ggplot(data=data.frame(x=x2s, y=y2s, f=fx2s)) +
 ```
 
 ```{r echo=F}
-foo = "bar"
-```
-
-```
 plt_mod2
 ```
 
@@ -274,10 +258,6 @@ First, I regress for the naturally piecewise constant model using the AIC
 fitness criterion.
 
 ```{r warning=FALSE}
-foo = "bar"
-```
-
-```
 ## Parameterize
 G = 30 # generations
 K = 10 # individuals per generation
@@ -310,10 +290,6 @@ plt_best1 = plot_chromosome(best_chromosome1, plot_df1, color="gold") +
 ```
 
 ```{r echo=F}
-foo = "bar"
-```
-
-```
 plt_best1
 ```
   
@@ -321,10 +297,6 @@ Second, I regress the smoother model from the preceeding section using the MDL
 fitness criterion.
 
 ```{r warning=FALSE}
-foo = "bar"
-```
-
-```
 ## Parameterize
 G = 30 # generations
 K = 10 # individuals per generation
@@ -357,10 +329,6 @@ plt_best2 = plot_chromosome(best_chromosome2, plot_df2, color="tomato1") +
 ```
 
 ```{r echo=F}
-foo = "bar"
-```
-
-```
 plt_best2
 ```
 
@@ -371,10 +339,6 @@ bootstrapping. First, I'll bootstrap the residuals of the naturally piecewise
 constant function
 
 ```{r}
-foo = "bar"
-```
-
-```
 # get residuals
 # for each boot
 #   sample n residuals w repl
@@ -395,7 +359,7 @@ bootstrap_residuals = function(B, best_chromosome, ys, xs, which_penalty){
     ## Bootstrap residuals
     n = length(ys)
     point_ests = data.frame(matrix(nrow=B, ncol=n))
-    for(b in 1:B){
+    br = function(){
         # get residuals and make y* = y + e*
         boot_resid = base::sample(res, n)
         boot_ys = ys + boot_resid
@@ -406,17 +370,18 @@ bootstrap_residuals = function(B, best_chromosome, ys, xs, which_penalty){
         boot_best_chrom = boot_best_org$Chromosome
         boot_yhats = regress_chromosome(boot_best_chrom, boot_ys, xs)
         # record the fitted values
-        point_ests[b,] = boot_yhats
+        return(boot_yhats)
     }
 
-    return(point_ests)
+    return(replicate(B, br()))
 }
 
 ## Recover the bootstrapped pointwise quantiles
 point_ests1 = bootstrap_residuals(B, best_chromosome1, y1s, x1s, which_penalty1)
 y1hats = regress_chromosome(best_chromosome1, y1s, x1s)
-boot_quantiles1 = sapply(
+boot_quantiles1 = apply(
         point_ests1,
+        1, # rows
         (function(x) quantile(x, probs=c(0.025, 0.975)))
     )
 
@@ -436,10 +401,6 @@ plt_boot_resid1 = ggplot(data=df_95c_resid1) +
 ```
 
 ```{r echo=F}
-foo = "bar"
-```
-
-```
 plt_boot_resid1
 ```
   
@@ -450,10 +411,6 @@ Next, I perform the residual bootstrap on the smooth model to obtain a pointwise
 95% confidence band.
 
 ```{r}
-foo = "bar"
-```
-
-```
 ## Parameterize
 B = 10 # number of bootstraps
 
@@ -480,10 +437,6 @@ plt_boot_resid2 = ggplot(data=df_95c_resid2) +
 ```
 
 ```{r echo=F}
-foo = "bar"
-```
-
-```
 plt_boot_resid2
 ```
 
@@ -496,10 +449,6 @@ estimates. I use the pointwise estimates as quantiles to estimate a 95%
 confidence band.
 
 ```{r}
-foo = "bar"
-```
-
-```
 # get xs and ys
 # for each boot
 #   sample n (x,y) pairs
@@ -542,7 +491,9 @@ boot_quantiles1 = sapply(
         point_ests1,
         (function(x) quantile(x, probs=c(0.025, 0.975)))
     )
+```
 
+```{r echo=F}
 ## Plot the pointwise confidence intervals
 df_95c_pair1 = data.frame(cbind(t(boot_quantiles1), y1hats, y1s, x1s))
 colnames(df_95c_pair1) = c("low", "up", "y", "yt", "x")
@@ -556,13 +507,7 @@ plt_boot_pair1 = ggplot(data=df_95c_pair1) +
     geom_line(data=data.frame(x=x1s, y=fx1s),
               aes(x=x, y=y), color="darkorange1", size=1.1) +
     labs(x="x", y="y", title="Pair bootstrapped 95% confidence band")
-```
 
-```{r echo=F}
-foo = "bar"
-```
-
-```
 plt_boot_pair1
 ```
 
@@ -572,10 +517,6 @@ tight than the previously exhibited residual bootstrap for the same purpose.
 Next, I examine the pair bootstrap on the smooth model.
 
 ```{r}
-foo = "bar"
-```
-
-```
 ## Parameterize
 B = 10 # number of bootstraps
 
@@ -586,7 +527,9 @@ boot_quantiles2 = sapply(
         point_ests2,
         (function(x) quantile(x, probs=c(0.025, 0.975)))
     )
+```
 
+```{r echo=F}
 ## Plot the pointwise confidence intervals
 df_95c_pair2 = data.frame(cbind(t(boot_quantiles2), y2hats, y2s, x2s))
 colnames(df_95c_pair2) = c("low", "up", "y", "yt", "x")
@@ -600,13 +543,7 @@ plt_boot_pair2 = ggplot(data=df_95c_pair2) +
     geom_line(data=data.frame(x=x2s, y=fx2s),
               aes(x=x, y=y), color="darkorchid", size=1.1) +
     labs(x="x", y="y", title="Pair bootstrapped 95% confidence band")
-```
 
-```{r echo=F}
-foo = "bar"
-```
-
-```
 plt_boot_pair2
 ```
   
@@ -770,9 +707,6 @@ the beginning of this section. The red segment is the normal theory jackknife
 confidence interval, the orange segment is the semiparametric bootstrap 90%
 confidence interval, and the olive segment is the nonparametric 90% bootstrapped
 confidence interval.
-
-Notice that the semiparametric bootstrapped interval is accurate and the
-tightest.
 
 # Sources
 1. https://en.wikipedia.org/wiki/Order_statistic
