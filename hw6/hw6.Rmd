@@ -202,6 +202,10 @@ model is described by the following algorithm, additional source code found in
 refference $[3]$.
 
 ```{r warning=FALSE, message=FALSE}
+foo = "bar"
+```
+
+```
 ## Import external source
 source("genetic_supplement.R")
 
@@ -221,6 +225,10 @@ plt_mod1 = ggplot(data=data.frame(x=x1s, y=y1s, f=fx1s)) +
 ```
 
 ```{r echo=F}
+foo = "bar"
+```
+
+```
 plt_mod1
 ```
 
@@ -228,6 +236,10 @@ The second model is
 $$f(x) = (4x − 2) + 2 e^{−16(4x − 2)^2}$$
 
 ```{r}
+foo = "bar"
+```
+
+```
 ## Subroutines
 model2 = function(x){
     r = (4*x-2) + 2*exp(-16*(4*x-2)^2)
@@ -247,6 +259,10 @@ plt_mod2 = ggplot(data=data.frame(x=x2s, y=y2s, f=fx2s)) +
 ```
 
 ```{r echo=F}
+foo = "bar"
+```
+
+```
 plt_mod2
 ```
 
@@ -258,6 +274,10 @@ First, I regress for the naturally piecewise constant model using the AIC
 fitness criterion.
 
 ```{r warning=FALSE}
+foo = "bar"
+```
+
+```
 ## Parameterize
 G = 30 # generations
 K = 10 # individuals per generation
@@ -290,6 +310,10 @@ plt_best1 = plot_chromosome(best_chromosome1, plot_df1, color="gold") +
 ```
 
 ```{r echo=F}
+foo = "bar"
+```
+
+```
 plt_best1
 ```
   
@@ -297,6 +321,10 @@ Second, I regress the smoother model from the preceeding section using the MDL
 fitness criterion.
 
 ```{r warning=FALSE}
+foo = "bar"
+```
+
+```
 ## Parameterize
 G = 30 # generations
 K = 10 # individuals per generation
@@ -329,6 +357,10 @@ plt_best2 = plot_chromosome(best_chromosome2, plot_df2, color="tomato1") +
 ```
 
 ```{r echo=F}
+foo = "bar"
+```
+
+```
 plt_best2
 ```
 
@@ -339,6 +371,10 @@ bootstrapping. First, I'll bootstrap the residuals of the naturally piecewise
 constant function
 
 ```{r}
+foo = "bar"
+```
+
+```
 # get residuals
 # for each boot
 #   sample n residuals w repl
@@ -400,6 +436,10 @@ plt_boot_resid1 = ggplot(data=df_95c_resid1) +
 ```
 
 ```{r echo=F}
+foo = "bar"
+```
+
+```
 plt_boot_resid1
 ```
   
@@ -410,6 +450,10 @@ Next, I perform the residual bootstrap on the smooth model to obtain a pointwise
 95% confidence band.
 
 ```{r}
+foo = "bar"
+```
+
+```
 ## Parameterize
 B = 10 # number of bootstraps
 
@@ -436,6 +480,10 @@ plt_boot_resid2 = ggplot(data=df_95c_resid2) +
 ```
 
 ```{r echo=F}
+foo = "bar"
+```
+
+```
 plt_boot_resid2
 ```
 
@@ -448,6 +496,10 @@ estimates. I use the pointwise estimates as quantiles to estimate a 95%
 confidence band.
 
 ```{r}
+foo = "bar"
+```
+
+```
 # get xs and ys
 # for each boot
 #   sample n (x,y) pairs
@@ -507,6 +559,10 @@ plt_boot_pair1 = ggplot(data=df_95c_pair1) +
 ```
 
 ```{r echo=F}
+foo = "bar"
+```
+
+```
 plt_boot_pair1
 ```
 
@@ -516,6 +572,10 @@ tight than the previously exhibited residual bootstrap for the same purpose.
 Next, I examine the pair bootstrap on the smooth model.
 
 ```{r}
+foo = "bar"
+```
+
+```
 ## Parameterize
 B = 10 # number of bootstraps
 
@@ -543,6 +603,10 @@ plt_boot_pair2 = ggplot(data=df_95c_pair2) +
 ```
 
 ```{r echo=F}
+foo = "bar"
+```
+
+```
 plt_boot_pair2
 ```
   
@@ -593,29 +657,122 @@ $$
 ```{r}
 q1 = qt(0.75, df=3)
 q0 = qt(0.25, df=3)
-theta = (q1 - q0) / 1.34
+theta_tr = (q1 - q0) / 1.34
 ```
 
-The true value of $\theta$ is $\frac{`r q1`-(`r q0`)}{1.34} \approx `r theta`$.
+The true value of $\theta$ is
+$\frac{`r q1`-(`r q0`)}{1.34} \approx `r theta_tr`$.
 
 ## Generating observations
 ```{r}
 ## Parameterize
 n = 25
 df = 3
-
-## Generate observations
 xs = rt(n=n, df=df)
+q0 = 0.25
+q1 = 0.75
 
+## Subroutines
+theta = function(xs_){
+    q0_ = quantile(xs_, q0)
+    q1_ = quantile(xs_, q1)
+    t_ = (q1_ - q0_)/1.34
+    return(t_)
+}
+
+## Estimate statistic using jackknife
+# normal theory w se from jack
+jts = c()
+for(i in 1:n){
+    jxs = xs[1:n != i]
+    jt = theta(jxs)
+    jts = c(jts, jt)
+}
+sej = sqrt(((n-1)/n) * sum((jts - mean(jts))^2))
+
+njci = theta(xs) + c(-1,1)*1.645*sej
+```
+The normal theory jackknife 90% confidence interval estimate for $\theta$ is
+$\hat{\theta}_{J} = `r theta(xs)` \pm `r 1.645*sej` \approx [`r njci`]$.
+
+Next I perform the normal theory bootstrap to generate another 90% confidence
+interval.
+
+```{r}
+## Parameterize
+B = 1000
+
+## Subroutines
+oneboot = function(xs_, stat_){
+    n = length(xs_)
+    samp = sample(xs_, n, replace=T)
+    r = stat_(samp)
+    return(r)
+}
+
+## Perform the bootstrap and calculate the confidence interval
+boot_stats = replicate(B, oneboot(xs, theta))
+boot_se = sqrt(sum((boot_stats - mean(boot_stats))^2)/(B-1))
+boot_ci_norm = theta(xs) + c(-1,1)*1.645*boot_se
+```
+The normal theory bootstrapped 90% confidence interval estimate for $\theta$ is
+$\hat{\theta}_{B} = `r theta(xs)` \pm
+`r 1.645*boot_se` \approx [`r boot_ci_norm`]$.
+
+Next, I calculate the semiparametric bootstrapped 90% confidence interval.
+
+```{r}
+zs = (boot_stats - theta(xs))/boot_se
+boot_ts = quantile(zs, c(0.05, 0.95))
+boot_semi_ci = theta(xs) + boot_ts*sqrt(var(xs)/n)
+```
+The semiparametric bootstrapped 90% confidence interval estimate for $\theta$ is
+$\hat{\theta}_{B^\star} = [`r boot_semi_ci`]$.
+
+Finally, I perform the completely nonparametric bootstrap to generate another
+90% confidence interval.
+
+```{r}
+B = 2500
+boot_stats_np = replicate(B, oneboot(xs, theta))
+boot_np_ci = quantile(boot_stats_np, c(0.05, 0.95))
+```
+The nonparametric bootstrapped 90% confidence interval estimate for $\theta$ is
+$\hat{\theta}_{B^{\star\star}} = [`r boot_np_ci`]$.
+
+Following is a graph of the observations with the estimated $\hat{\theta}$
+confidence intervals overlayed for convenience.
+
+```{r echo=F}
 ## Plot
 plt_ts = ggplot(data=data.frame(x=xs)) +
     geom_histogram(aes(x=x), color="steelblue", bins=30) +
-    labs(x="X", y="Frequency", title="Histogram of generated observations")
-```
+    labs(x="X", y="Frequency", title="Histogram of generated observations") +
+    geom_segment(aes(x = njci[1], y = 0.1, xend = njci[2], yend = 0.1),
+                 color="tomato1", size=1.1) +
+    geom_segment(aes(x = boot_ci_norm[1], y = 0.25,
+                     xend = boot_ci_norm[2], yend = 0.25),
+                 color="darkorchid", size=1.1) +
+    geom_segment(aes(x = boot_semi_ci[1], y = 0.4,
+                     xend = boot_semi_ci[2], yend = 0.4),
+                 color="darkorange1", size=1.1) +
+    geom_segment(aes(x = boot_np_ci[1], y = 0.55,
+                     xend = boot_np_ci[2], yend = 0.55),
+                 color="olivedrab", size=1.1) +
+    geom_vline(xintercept = theta_tr, color="gold", size=1.1)
 
-```{r echo=F}
 plt_ts
 ```
+  
+The golden vertical line depicts the true $\theta=`r theta_tr`$ calculated at
+the beginning of this section. The red segment is the normal theory jackknife
+90% confidence interval, the purple segment is the normal theory bootstrap 90%
+confidence interval, the orange segment is the semiparametric bootstrap 90%
+confidence interval, and the olive segment is the nonparametric 90% bootstrapped
+confidence interval.
+
+Notice that the semiparametric bootstrapped interval is accurate and the
+tightest.
 
 # Sources
 1. https://en.wikipedia.org/wiki/Order_statistic
