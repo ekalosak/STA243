@@ -108,7 +108,9 @@ var_boot_param = var(maxs_param)
 
 ## Calculate the analytical variance
 var_anal = n*t^2*(1/(n+2) - n/(n+1)^2)
+```
 
+```{r echo=F}
 ## Plot parametric bootstrap samples
 plt_var_param = ggplot(data=data.frame(x=maxs_param), aes(x=x)) +
     geom_histogram(color="steelblue", binwidth=0.025) +
@@ -119,9 +121,7 @@ plt_var_param = ggplot(data=data.frame(x=maxs_param), aes(x=x)) +
         title=
         TeX("Parametric bootstrapping to estimate Var($\\hat{\\theta}$)")
     )
-```
 
-```{r echo=F}
 plt_var_param
 ```
   
@@ -147,7 +147,9 @@ maxs_nonparam = apply(bs_nonparam, 1, max)
 
 # calculate nonparametric bootstrapped variance of the mle
 var_boot_nonparam = var(maxs_nonparam)
+```
 
+```{r echo=F}
 ## Plot variances
 plt_var_nonparam = ggplot(data=data.frame(x=maxs_nonparam), aes(x=x)) +
     geom_histogram(color="steelblue", binwidth=0.025) +
@@ -159,10 +161,6 @@ plt_var_nonparam = ggplot(data=data.frame(x=maxs_nonparam), aes(x=x)) +
         TeX("Nonparametric bootstrapping to estimate Var($\\hat{\\theta}$)")
     )
 
-### END: Code
-```
-
-```{r echo=F}
 plt_var_nonparam
 ```
   
@@ -212,15 +210,15 @@ n = 512
 x1s = (0:(n-1))/n
 fx1s = model1(x1s)
 y1s = fx1s + noise1(x1s)
+```
 
+```{r echo=F}
 ## Plot generated observations
 plt_mod1 = ggplot(data=data.frame(x=x1s, y=y1s, f=fx1s)) +
     geom_point(aes(x=x, y=y), color="steelblue", alpha=0.8) +
     geom_line(aes(x=x, y=f), color="darkorange1", size=1.1, alpha=0.5) +
     labs(x="X", y="Y", title="Model 1")
-```
 
-```{r echo=F}
 plt_mod1
 ```
 
@@ -238,15 +236,15 @@ model2 = function(x){
 x2s = (0:(n-1))/n
 fx2s = model2(x2s)
 y2s = fx2s + rnorm(n, sd=(fx2s^2/5))
+```
 
+```{r echo=F}
 ## Plot generated observations
 plt_mod2 = ggplot(data=data.frame(x=x2s, y=y2s, f=fx2s)) +
     geom_point(aes(x=x, y=y), color="steelblue", alpha=0.8) +
     geom_line(aes(x=x, y=f), color="darkorchid", size=1.1, alpha=0.5) +
     labs(x="X", y="Y", title="Model 2")
-```
 
-```{r echo=F}
 plt_mod2
 ```
 
@@ -259,8 +257,8 @@ fitness criterion.
 
 ```{r warning=FALSE}
 ## Parameterize
-G = 30 # generations
-K = 10 # individuals per generation
+G = 50 # generations
+K = 25 # individuals per generation
 Pcross = 0.7 # Crossover rate
 Pmutate = 0.08 # Mutation rate
 Pimmigrate = 0.3 # Rate of new individual introduction into population
@@ -298,8 +296,8 @@ fitness criterion.
 
 ```{r warning=FALSE}
 ## Parameterize
-G = 30 # generations
-K = 10 # individuals per generation
+G = 50 # generations
+K = 25 # individuals per generation
 Pcross = 0.7 # Crossover rate
 Pmutate = 0.18 # Mutation rate
 Pimmigrate = 0.6 # Rate of new individual introduction into population
@@ -348,7 +346,7 @@ constant function
 #   these serve as the emperical distribution for each point
 
 ## Parameterize
-B = 10 # number of bootstraps
+B = 100 # number of bootstraps
 
 bootstrap_residuals = function(B, best_chromosome, ys, xs, which_penalty){
 
@@ -388,7 +386,9 @@ boot_quantiles1 = apply(
 ## Plot the pointwise confidence intervals
 df_95c_resid1 = data.frame(cbind(t(boot_quantiles1), y1hats, y1s, x1s))
 colnames(df_95c_resid1) = c("low", "up", "y", "yt", "x")
+```
 
+```{r echo=F}
 plt_boot_resid1 = ggplot(data=df_95c_resid1) +
     geom_ribbon(aes(x=x, ymin=low, ymax=up),
                 color="steelblue", alpha=0.6) +
@@ -398,9 +398,7 @@ plt_boot_resid1 = ggplot(data=df_95c_resid1) +
     geom_line(data=data.frame(x=x1s, y=fx1s),
               aes(x=x, y=y), color="darkorange1", size=1.1) +
     labs(x="x", y="y", title="Residual bootstrapped 95% confidence band")
-```
 
-```{r echo=F}
 plt_boot_resid1
 ```
   
@@ -412,7 +410,7 @@ Next, I perform the residual bootstrap on the smooth model to obtain a pointwise
 
 ```{r}
 ## Parameterize
-B = 10 # number of bootstraps
+B = 100 # number of bootstraps
 
 ## Recover the bootstrapped pointwise quantiles
 point_ests2 = bootstrap_residuals(B, best_chromosome2, y2s, x2s, which_penalty2)
@@ -425,6 +423,9 @@ boot_quantiles2 = sapply(
 ## Plot the pointwise confidence intervals
 df_95c_resid2 = data.frame(cbind(t(boot_quantiles2), y2hats, y2s, x2s))
 colnames(df_95c_resid2) = c("low", "up", "y", "yt", "x")
+```
+
+```{r echo=F}
 plt_boot_resid2 = ggplot(data=df_95c_resid2) +
     geom_ribbon(aes(x=x, ymin=low, ymax=up),
                 color="steelblue", alpha=0.6) +
@@ -434,9 +435,7 @@ plt_boot_resid2 = ggplot(data=df_95c_resid2) +
     geom_line(data=data.frame(x=x2s, y=fx2s),
               aes(x=x, y=y), color="darkorchid", size=1.1) +
     labs(x="x", y="y", title="Residual bootstrapped 95% confidence band")
-```
 
-```{r echo=F}
 plt_boot_resid2
 ```
 
@@ -457,7 +456,7 @@ confidence band.
 #   these serve as the emperical distribution for each point
 
 ## Parameterize
-B = 10 # number of bootstraps
+B = 100 # number of bootstraps
 
 bootstrap_pairs = function(B, best_chromosome, ys, xs, which_penalty){
 
@@ -518,7 +517,7 @@ Next, I examine the pair bootstrap on the smooth model.
 
 ```{r}
 ## Parameterize
-B = 10 # number of bootstraps
+B = 100 # number of bootstraps
 
 ## Recover the bootstrapped pointwise quantiles
 point_ests2 = bootstrap_pairs(B, best_chromosome2, y2s, x2s, which_penalty2)
@@ -616,7 +615,13 @@ theta = function(xs_){
     t_ = (q1_ - q0_)/1.34
     return(t_)
 }
+```
 
+## Different resampling methods for estimating confidence intervals
+
+### Normal theory (parametric) jackknife
+
+```{r}
 ## Estimate statistic using jackknife
 # normal theory w se from jack
 jts = c()
@@ -634,6 +639,8 @@ $\hat{\theta}_{J} = `r theta(xs)` \pm `r 1.645*sej` \approx [`r njci`]$.
 
 Next I perform the normal theory bootstrap to generate another 90% confidence
 interval.
+
+### Normal theory (parametric) bootstrap
 
 ```{r}
 ## Parameterize
@@ -658,6 +665,8 @@ $\hat{\theta}_{B} = `r theta(xs)` \pm
 
 Next, I calculate the semiparametric bootstrapped 90% confidence interval.
 
+### Semiparametric bootstrap
+
 ```{r}
 zs = (boot_stats - theta(xs))/boot_se
 boot_ts = quantile(zs, c(0.05, 0.95))
@@ -669,8 +678,10 @@ $\hat{\theta}_{B^\star} = [`r boot_semi_ci`]$.
 Finally, I perform the completely nonparametric bootstrap to generate another
 90% confidence interval.
 
+### Nonparametric bootstrap
+
 ```{r}
-B = 2500
+B = 20000
 boot_stats_np = replicate(B, oneboot(xs, theta))
 boot_np_ci = quantile(boot_stats_np, c(0.05, 0.95))
 ```
